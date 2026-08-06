@@ -1,0 +1,24 @@
+# Large-scale configuration for a multi-GPU server / cluster node.
+# Targets the brief's "10,000+ runners, millions of episodes" scale. Population
+# size and per-agent parallelism are cranked up; use subprocess vec-envs and a
+# CUDA device. Scale `size` toward 10,000 across multiple worker processes/nodes
+# sharing the same experiment database.
+base: default
+
+experiment_name: cluster_large
+
+hardware:
+  device: cuda
+  n_envs: 16
+  subprocess: true
+
+population:
+  size: 256             # per node; run many nodes against one DB to reach 10k+
+  timesteps_per_gen: 100000
+  algos: [ppo, sac, td3, ddpg, a2c]
+
+env:
+  randomize_weather: true     # robustness across conditions
+
+trainer:
+  max_generations: 0

@@ -1,0 +1,47 @@
+[build-system]
+requires = ["setuptools>=64", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "milerunner"
+version = "0.1.0"
+description = "Discovering the fastest human mile with deep RL + evolutionary optimization under realistic biomechanics"
+readme = "README.md"
+requires-python = ">=3.9"
+license = { text = "MIT" }
+authors = [{ name = "MileRunner contributors" }]
+keywords = ["reinforcement-learning", "biomechanics", "mujoco", "evolution",
+            "population-based-training", "running"]
+
+dependencies = [
+    "torch>=2.2",
+    "mujoco>=3.1",
+    "gymnasium>=0.29",
+    "stable-baselines3>=2.2",
+    "sb3-contrib>=2.2",
+    "numpy>=1.24",
+    "scipy>=1.10",
+    "pandas>=2.0",
+    "plotly>=5.18",
+    "dash>=2.14",
+    "tensorboard>=2.14",
+    "pyyaml>=6.0",
+    "rich>=13.0",
+    "tqdm>=4.65",
+]
+
+[project.optional-dependencies]
+test = ["pytest>=7.4"]
+video = ["imageio>=2.31", "imageio-ffmpeg>=0.4"]
+
+[project.scripts]
+milerunner-train = "scripts.run:main"
+milerunner-dashboard = "scripts.dashboard:main"
+
+[tool.setuptools.packages.find]
+include = ["milerunner*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"
+filterwarnings = ["ignore::DeprecationWarning", "ignore::UserWarning"]
