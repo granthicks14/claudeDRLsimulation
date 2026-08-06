@@ -1,0 +1,38 @@
+# Alternative body types for the "different body types" experiments.
+# Each block can be merged into a run to explore how physiology shapes the
+# optimal mile. CS values are ~90% of each body's VO2max pace for consistency.
+
+lightweight_runner:
+  body:
+    name: lightweight_runner
+    height_m: 1.7
+    mass_kg: 60.0
+    vo2max_ml_kg_min: 62.0
+    critical_speed_mps: 4.7
+    d_prime_m: 180.0
+powerful_runner:
+  body:
+    name: powerful_runner
+    height_m: 1.83
+    mass_kg: 88.0
+    vo2max_ml_kg_min: 45.0
+    critical_speed_mps: 3.5
+    d_prime_m: 320.0
+tall_runner:
+  body:
+    name: tall_runner
+    height_m: 1.93
+    mass_kg: 84.0
+    vo2max_ml_kg_min: 52.0
+    critical_speed_mps: 3.9
+    d_prime_m: 240.0
+masters_runner:
+  body:
+    name: masters_runner
+    height_m: 1.75
+    mass_kg: 74.0
+    age_years: 55.0
+    vo2max_ml_kg_min: 40.0
+    hr_max_bpm: 170.0
+    critical_speed_mps: 2.9
+    d_prime_m: 200.0

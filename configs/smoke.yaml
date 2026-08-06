@@ -1,0 +1,21 @@
+# Tiny, fast configuration for smoke tests, CI and demos.
+# Trains a small population for a few thousand steps with short episodes so a
+# few generations complete in a couple of minutes on a CPU laptop.
+base: default
+
+experiment_name: smoke
+
+hardware:
+  n_envs: 2
+  subprocess: false
+
+env:
+  max_time_s: 12.0      # short episodes -> fast generations
+
+population:
+  size: 6
+  timesteps_per_gen: 1500
+  algos: [ppo, sac, a2c]
+
+trainer:
+  max_generations: 3

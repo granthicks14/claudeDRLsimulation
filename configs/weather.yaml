@@ -1,0 +1,32 @@
+# Weather / environment presets for the "different weather conditions" study.
+
+fast_conditions:         # cool, calm, sea level — record-friendly
+  weather:
+    temperature_c: 12.0
+    wind_mps: 0.0
+    humidity: 0.4
+    altitude_m: 0.0
+
+hot_humid:
+  weather:
+    temperature_c: 32.0
+    wind_mps: 0.0
+    humidity: 0.85
+    altitude_m: 0.0
+
+headwind:
+  weather:
+    temperature_c: 15.0
+    wind_mps: -4.0        # 4 m/s headwind
+    humidity: 0.5
+
+tailwind:
+  weather:
+    temperature_c: 15.0
+    wind_mps: 3.0         # legal-ish tailwind
+
+altitude:
+  weather:
+    temperature_c: 15.0
+    wind_mps: 0.0
+    altitude_m: 2200.0    # reduces VO2max

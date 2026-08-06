@@ -1,0 +1,68 @@
+# MileRunner default configuration.
+# A single YAML file fully determines an experiment (env, population, trainer),
+# so runs are reproducible. Override any field with --set key=value or a child
+# config that sets `base: default`.
+
+experiment_name: default
+seed: 0
+
+# ---------------- Hardware / scaling ----------------
+hardware:
+  device: auto          # auto | cpu | cuda  (falls back to cpu if no GPU)
+  n_envs: 4             # parallel environments PER agent during training
+  subprocess: false     # true -> SubprocVecEnv (multiprocess) for more throughput
+
+# ---------------- Human body ----------------
+# The "average male" from the brief. Override to explore other body types.
+body:
+  name: average_male
+  height_m: 1.75        # 5'9"
+  mass_kg: 77.0         # 170 lb
+  age_years: 30.0
+  sex: male
+  vo2max_ml_kg_min: 48.0
+  critical_speed_mps: 3.6      # ~90% of VO2max pace (physiologically consistent)
+  d_prime_m: 220.0
+  hr_max_bpm: 190.0
+  lactate_threshold_frac: 0.85
+
+# ---------------- Environment / physics ----------------
+env:
+  distance_m: 1609.344  # one mile
+  control_hz: 100.0     # policy decisions per second
+  physics_timestep: 0.001   # 1000 Hz physics -> 1000+ steps/sec (requirement met)
+  max_time_s: 900.0
+  terminate_on_fall: true
+  terminate_on_exhaustion: false
+  friction: 1.0
+  reset_noise: 0.02
+  randomize_weather: false
+  randomize_body: false
+
+# ---------------- Weather (fixed unless randomised) ----------------
+weather:
+  temperature_c: 15.0
+  wind_mps: 0.0         # + tailwind, - headwind
+  humidity: 0.5
+  altitude_m: 0.0
+
+# ---------------- Population-based training ----------------
+population:
+  size: 16              # runners trained simultaneously (scale up on big machines)
+  elite_frac: 0.1       # keep the best 10% each generation
+  timesteps_per_gen: 20000   # training budget per agent per generation
+  tournament_k: 3
+  mutation_strength: 0.15
+  warm_start: true      # offspring inherit an elite parent's weights when shapes match
+  keep_best_models: 25
+  # RL algorithms in the tournament (evolution can swap between them):
+  algos: [ppo, sac, td3, ddpg, a2c]
+
+# ---------------- Trainer (continuous loop) ----------------
+trainer:
+  max_generations: 0    # 0 = run forever (pause with Ctrl-C, resume by re-running)
+  checkpoint_root: checkpoints
+  state_dir: experiments
+  db_path: experiments/milerunner.db
+  status_path: experiments/status.json
+  save_every: 1

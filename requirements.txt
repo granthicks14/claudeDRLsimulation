@@ -1,0 +1,35 @@
+# MileRunner dependencies.
+# Install with:  pip install -r requirements.txt
+#
+# For GPU/CUDA acceleration, install the matching CUDA torch build from
+# https://pytorch.org/get-started/locally/ (e.g. cu121). The default PyPI wheel
+# already bundles CUDA on Linux; on a CPU-only box it falls back automatically.
+
+# --- Core deep RL / physics ---
+torch>=2.2
+mujoco>=3.1
+gymnasium>=0.29
+stable-baselines3>=2.2
+sb3-contrib>=2.2        # recurrent (LSTM) policies for the architecture search
+
+# --- Scientific stack ---
+numpy>=1.24
+scipy>=1.10
+pandas>=2.0
+
+# --- Dashboard / visualization ---
+plotly>=5.18
+dash>=2.14
+
+# --- Experiment tracking / logging / config ---
+tensorboard>=2.14
+pyyaml>=6.0
+rich>=13.0
+tqdm>=4.65
+
+# --- Tests ---
+pytest>=7.4
+
+# --- Optional: photorealistic MuJoCo video export (needs a GL backend) ---
+# imageio>=2.31
+# imageio-ffmpeg>=0.4
