@@ -1,0 +1,182 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>MileRunner — Discovering the Fastest Human Mile with AI</title>
+<meta name="description" content="A deep-RL + evolutionary platform that trains AI agents to discover the fastest one-mile running strategy for an average human body under realistic biomechanics." />
+<style>
+  :root{
+    --bg:#0b1220; --panel:#111827; --panel2:#0f1a2e; --border:#1f2b45;
+    --text:#e5e7eb; --muted:#9ca3af; --accent:#22d3ee; --accent2:#f59e0b;
+    --accent3:#a78bfa; --good:#34d399; --code:#0a0f1c;
+  }
+  @media (prefers-color-scheme: light){
+    :root{ --bg:#f6f8fc; --panel:#ffffff; --panel2:#eef2f9; --border:#dbe3ef;
+      --text:#0f172a; --muted:#5b6472; --accent:#0891b2; --accent2:#b45309;
+      --accent3:#6d28d9; --good:#059669; --code:#0f172a; }
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0}
+  body{background:var(--bg);color:var(--text);
+    font-family:ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Inter,Arial,sans-serif;
+    line-height:1.6;-webkit-font-smoothing:antialiased}
+  a{color:var(--accent)}
+  .wrap{max-width:960px;margin:0 auto;padding:0 20px}
+  header{padding:56px 0 24px;text-align:center}
+  .badge{display:inline-block;font-size:12px;letter-spacing:.08em;text-transform:uppercase;
+    color:var(--accent);border:1px solid var(--border);border-radius:999px;padding:5px 12px;margin-bottom:18px}
+  h1{font-size:clamp(28px,5vw,46px);line-height:1.1;margin:.2em 0}
+  h1 .grad{background:linear-gradient(90deg,var(--accent),var(--accent3));
+    -webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent}
+  .tag{color:var(--muted);font-size:clamp(15px,2.4vw,19px);max-width:640px;margin:10px auto 0}
+  .cta{display:flex;gap:12px;justify-content:center;flex-wrap:wrap;margin:26px 0 6px}
+  .btn{display:inline-block;padding:11px 20px;border-radius:10px;text-decoration:none;font-weight:600;
+    border:1px solid var(--border)}
+  .btn.primary{background:var(--accent);color:#00131a;border-color:transparent}
+  .btn.ghost{background:var(--panel);color:var(--text)}
+  /* decorative runner */
+  .track{margin:30px auto 0;max-width:520px}
+  .runner{width:100%;height:auto}
+  .stride line, .stride circle{stroke:var(--accent);stroke-width:5;stroke-linecap:round;fill:none}
+  .stride .head{fill:var(--accent2);stroke:none}
+  @keyframes bob{0%,100%{transform:translateY(0)}50%{transform:translateY(-4px)}}
+  @keyframes legA{0%,100%{transform:rotate(28deg)}50%{transform:rotate(-30deg)}}
+  @keyframes legB{0%,100%{transform:rotate(-30deg)}50%{transform:rotate(28deg)}}
+  @keyframes armA{0%,100%{transform:rotate(-26deg)}50%{transform:rotate(26deg)}}
+  @keyframes armB{0%,100%{transform:rotate(26deg)}50%{transform:rotate(-26deg)}}
+  .body{animation:bob .5s ease-in-out infinite}
+  .legf{transform-origin:100px 118px;animation:legA .5s linear infinite}
+  .legb{transform-origin:100px 118px;animation:legB .5s linear infinite}
+  .armf{transform-origin:100px 78px;animation:armA .5s linear infinite}
+  .armb{transform-origin:100px 78px;animation:armB .5s linear infinite}
+  .cap{color:var(--muted);font-size:12px;text-align:center;margin-top:8px}
+  section{margin:30px 0}
+  .note{background:var(--panel2);border:1px solid var(--border);border-left:4px solid var(--accent2);
+    border-radius:10px;padding:16px 18px}
+  .note b{color:var(--accent2)}
+  .card{background:var(--panel);border:1px solid var(--border);border-radius:14px;padding:20px 22px}
+  h2{font-size:22px;margin:0 0 12px}
+  pre{background:var(--code);color:#d7e2f4;border:1px solid var(--border);border-radius:10px;
+    padding:14px 16px;overflow-x:auto;font-size:13.5px;line-height:1.7;
+    font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
+  @media (prefers-color-scheme: light){pre{background:#0f172a;color:#e2e8f0}}
+  .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px}
+  .feat{background:var(--panel);border:1px solid var(--border);border-radius:12px;padding:16px 18px}
+  .feat h3{margin:.1em 0 .3em;font-size:15px}
+  .feat p{margin:0;color:var(--muted);font-size:13.5px}
+  .kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:14px;margin-top:6px}
+  .kpi{background:var(--panel);border:1px solid var(--border);border-radius:12px;padding:16px;text-align:center}
+  .kpi .n{font-size:26px;font-weight:800;color:var(--accent)}
+  .kpi .l{color:var(--muted);font-size:12.5px;margin-top:2px}
+  ol.steps{padding-left:20px}
+  ol.steps li{margin:6px 0}
+  footer{border-top:1px solid var(--border);margin-top:44px;padding:24px 0 60px;color:var(--muted);font-size:13px;text-align:center}
+  .pill{display:inline-block;background:var(--panel2);border:1px solid var(--border);border-radius:8px;
+    padding:2px 8px;font-size:12px;color:var(--muted);margin:2px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <span class="badge">Deep RL · Evolution · Biomechanics</span>
+    <h1>🏃 <span class="grad">MileRunner</span></h1>
+    <p class="tag">A research platform that trains populations of AI agents to discover the
+      <b>fastest possible one-mile run</b> for an average human body — under realistic
+      muscles, tendons, fatigue and energy systems. No technique is hard-coded; it's all discovered.</p>
+    <div class="cta">
+      <a class="btn primary" href="https://github.com/granthicks14/claudeDRLsimulation" target="_blank" rel="noopener">View on GitHub</a>
+      <a class="btn ghost" href="https://github.com/granthicks14/claudeDRLsimulation/pull/1" target="_blank" rel="noopener">Pull Request #1</a>
+      <a class="btn ghost" href="#run">How to run it</a>
+    </div>
+
+    <div class="track" aria-hidden="true">
+      <svg class="runner" viewBox="0 0 200 150" role="img">
+        <g class="body">
+          <!-- back arm & leg (behind) -->
+          <line class="armb" x1="100" y1="78" x2="82" y2="104"/>
+          <line class="legb" x1="100" y1="118" x2="86" y2="146"/>
+          <!-- torso -->
+          <line x1="100" y1="78" x2="100" y2="118"/>
+          <!-- head -->
+          <circle class="head" cx="100" cy="66" r="10"/>
+          <!-- front arm & leg -->
+          <line class="armf" x1="100" y1="78" x2="120" y2="100"/>
+          <line class="legf" x1="100" y1="118" x2="118" y2="146"/>
+        </g>
+        <line x1="20" y1="147" x2="180" y2="147" stroke="var(--border)" stroke-width="3"/>
+      </svg>
+      <div class="cap">Illustrative — the real 3D runner is reconstructed from the trained agent's physics (see the dashboard).</div>
+    </div>
+  </header>
+
+  <section>
+    <div class="note">
+      <b>Heads up — this is a program you run, not a website.</b><br/>
+      MileRunner runs heavy physics (MuJoCo) and neural-network training (PyTorch) on your own
+      computer or a server. A hosting service like Vercel can only show this info page — it can't
+      execute the training or the live dashboard. Follow the steps below to actually run it.
+    </div>
+  </section>
+
+  <section id="run">
+    <div class="card">
+      <h2>▶ Run it in 3 steps</h2>
+      <ol class="steps">
+        <li>Clone the repo and install dependencies (needs Python 3.9+):</li>
+      </ol>
+      <pre>git clone https://github.com/granthicks14/claudeDRLsimulation.git
+cd claudeDRLsimulation
+pip install -r requirements.txt</pre>
+      <ol class="steps" start="2">
+        <li>Start the autonomous training (auto-starts, runs until you press Ctrl-C):</li>
+      </ol>
+      <pre>python scripts/run.py                 # or:  --config smoke   for a fast 2-min demo</pre>
+      <ol class="steps" start="3">
+        <li>In a second terminal, open the live dashboard:</li>
+      </ol>
+      <pre>python scripts/dashboard.py
+# then open  http://127.0.0.1:8050  in your browser</pre>
+      <p style="color:var(--muted);font-size:13.5px;margin:8px 0 0">
+        Pause anytime with Ctrl-C and re-run to resume — progress, checkpoints and the best models are saved automatically.
+        Also try: <span class="pill">python scripts/evaluate.py</span>
+        <span class="pill">python scripts/analyze.py</span>
+        <span class="pill">python scripts/benchmark.py --all</span>
+      </p>
+    </div>
+  </section>
+
+  <section>
+    <h2>What the platform finds</h2>
+    <div class="kpis">
+      <div class="kpi"><div class="n">~6:26</div><div class="l">theoretical mile floor (physics-derived, average male)</div></div>
+      <div class="kpi"><div class="n">8,000+</div><div class="l">physics steps / sec / CPU core</div></div>
+      <div class="kpi"><div class="n">6</div><div class="l">RL algorithms competing (PPO·SAC·TD3·DDPG·A2C·+LSTM)</div></div>
+      <div class="kpi"><div class="n">∞</div><div class="l">generations — improves as long as it runs</div></div>
+    </div>
+    <div class="cap" style="margin-top:10px">Numbers are from the simulator &amp; physiological model, not hand-authored results. Achieved mile times improve with training time.</div>
+  </section>
+
+  <section>
+    <h2>Under the hood</h2>
+    <div class="grid">
+      <div class="feat"><h3>🦵 Real biomechanics</h3><p>3D MuJoCo humanoid (exact 77&nbsp;kg, clinical joint limits) with VO₂max, heart rate, lactate, the critical-power/W′ anaerobic reserve, glycogen, tendon economy, thermoregulation and per-muscle fatigue.</p></div>
+      <div class="feat"><h3>🧠 It discovers, we don't</h3><p>Stride, cadence, pacing, arm swing and breathing all emerge from RL under physical constraints. No strategy is coded.</p></div>
+      <div class="feat"><h3>🧬 Population-based training</h3><p>Thousands of agents evolve: keep the best 10%, mutate & breed offspring, warm-start from elites — so experience compounds.</p></div>
+      <div class="feat"><h3>📈 Live dashboard</h3><p>Speed, cadence, heart-rate, oxygen, energy & lactate curves, a muscle-fatigue heat-map, and an animated 3D replay of the best runner.</p></div>
+      <div class="feat"><h3>💾 Never lose progress</h3><p>An SQLite database records every experiment and preserves the best models; pause and resume indefinitely.</p></div>
+      <div class="feat"><h3>⚡ Laptop → cluster</h3><p>Scales by config from a CPU laptop to multi-GPU servers; CUDA is used automatically when available.</p></div>
+    </div>
+  </section>
+
+  <footer>
+    <div>MileRunner · MIT License ·
+      <a href="https://github.com/granthicks14/claudeDRLsimulation" target="_blank" rel="noopener">GitHub</a> ·
+      <a href="https://github.com/granthicks14/claudeDRLsimulation/blob/main/docs/ARCHITECTURE.md" target="_blank" rel="noopener">Architecture</a> ·
+      <a href="https://github.com/granthicks14/claudeDRLsimulation/blob/main/docs/RESEARCH_QUESTIONS.md" target="_blank" rel="noopener">Research questions</a>
+    </div>
+    <div style="margin-top:8px">This page is a project overview. The training program itself runs locally via Python.</div>
+  </footer>
+</div>
+</body>
+</html>
