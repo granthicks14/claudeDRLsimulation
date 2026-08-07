@@ -1,0 +1,61 @@
+# Run MileRunner free in GitHub Codespaces (no credit card)
+
+**GitHub Codespaces** is the easiest genuinely-free way to run MileRunner as a
+browser app — **no credit card required**. Every GitHub account gets free
+Codespaces hours each month, an **8 GB RAM** Linux machine (plenty for PyTorch),
+and an automatic public-to-you URL for the dashboard. You already have the repo,
+so there's nothing new to sign up for.
+
+This repo includes a dev-container that **auto-installs everything and
+auto-starts the trainer + dashboard**, so it's nearly one click.
+
+---
+
+## Steps
+
+### 1. Open a Codespace
+1. Go to the repo: <https://github.com/granthicks14/claudeDRLsimulation>
+2. Click the green **`< > Code`** button → **Codespaces** tab →
+   **Create codespace on main**.
+3. A browser VS Code opens and starts building. The first build installs PyTorch
+   and the rest of the stack — this takes **~3–5 minutes** (only the first time).
+
+### 2. Open the dashboard
+- When setup finishes, the trainer + dashboard start automatically and a
+  **"Your application running on port 7860 is available"** popup appears →
+  click **Open in Browser**.
+- If you miss the popup: click the **Ports** tab (next to the terminal), find
+  port **7860** ("MileRunner Dashboard"), and click the 🌐 globe icon to open it.
+
+That's it — the live dashboard loads. Give the trainer a minute to finish its
+first generation, then the fastest-mile number, the speed / heart-rate / cadence
+/ oxygen / energy curves, the muscle-fatigue heat-map and the 3D runner fill in
+and keep improving. 🎉
+
+---
+
+## Handy things
+
+- **Restart the app** (if needed): in the terminal run
+  ```bash
+  pkill -f app.py; pkill -f scripts/run.py    # stop
+  python app.py                                # start again (Ctrl-C to stop)
+  ```
+- **See training logs**: `tail -f /tmp/milerunner.log` or `tail -f experiments/train.log`
+- **Make it train harder**: edit `configs/hosted.yaml` (raise `population.size`
+  and `timesteps_per_gen`) — the 8 GB machine has plenty of headroom — then
+  restart the app.
+- **Share the URL**: in the **Ports** tab, right-click port 7860 → **Port
+  Visibility → Public** to let others open it (otherwise it's just for you).
+
+## Free usage & limits
+
+- GitHub's free plan includes **120 core-hours + 15 GB/month** of Codespaces at
+  no cost and **no credit card** (a 2-core machine = ~60 hours/month).
+- **Stop the Codespace when you're done** so it doesn't use your free hours:
+  <https://github.com/codespaces> → **⋯** → **Stop codespace**. Restarting later
+  resumes instantly (deps stay installed).
+- Codespaces auto-stop after 30 minutes idle by default, so you won't burn hours
+  by forgetting about it.
+- Progress is saved inside the Codespace (`experiments/`), so stopping and
+  restarting keeps your best mile. Deleting the Codespace clears it.

@@ -19,7 +19,8 @@ pandas>=2.0
 
 # --- Dashboard / visualization ---
 plotly>=5.18
-dash>=2.14
+dash>=2.14           # local Dash dashboard (scripts/dashboard.py)
+gradio>=4.19         # Gradio dashboard (app.py) for free Hugging Face Spaces
 
 # --- Experiment tracking / logging / config ---
 tensorboard>=2.14
