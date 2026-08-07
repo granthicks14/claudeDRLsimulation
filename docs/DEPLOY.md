@@ -42,7 +42,20 @@ Anything that runs this must give the container **~1–2 GB RAM** (PyTorch alone
 needs several hundred MB), so the tiny 512 MB free tiers will OOM. These free
 options work:
 
-### Hugging Face Spaces — free hosted URL (recommended)
+### GitHub Codespaces — free, no credit card (recommended)
+
+Every GitHub account gets free monthly Codespaces hours (no payment method
+required) on an **8 GB RAM** machine. The repo ships a dev-container that
+auto-installs the stack and auto-starts the trainer + dashboard, then forwards
+the port to a browser URL. **Full guide: [`CODESPACES_SETUP.md`](CODESPACES_SETUP.md).**
+In short: repo → **`< > Code` → Codespaces → Create codespace on main** → wait
+for the build → click **Open in Browser** on port 7860.
+
+### Google Colab — easiest, no account setup
+
+Open **`notebooks/MileRunner_Colab.ipynb`** in Colab and *Run all* (see below).
+
+### Hugging Face Spaces — free 16 GB (may now require a card)
 
 Free Spaces get **2 vCPU + 16 GB RAM** and run Docker. Steps:
 

@@ -1,0 +1,29 @@
+{
+  // GitHub Codespaces / VS Code Dev Container for MileRunner.
+  // Free on GitHub (no credit card): every account gets monthly Codespaces
+  // hours. This container installs the stack, then auto-starts the trainer +
+  // live dashboard and forwards its port so a browser tab opens automatically.
+  "name": "MileRunner",
+  "image": "mcr.microsoft.com/devcontainers/python:3.11",
+
+  // Install CPU PyTorch (small) then the rest of the stack.
+  "postCreateCommand": "pip install --no-cache-dir torch --index-url https://download.pytorch.org/whl/cpu && pip install --no-cache-dir -r requirements.txt",
+
+  // Start the trainer + Gradio dashboard in the background on every start.
+  "postStartCommand": "nohup python app.py > /tmp/milerunner.log 2>&1 &",
+
+  // Expose the dashboard; Codespaces gives it a browser URL automatically.
+  "forwardPorts": [7860],
+  "portsAttributes": {
+    "7860": {
+      "label": "MileRunner Dashboard",
+      "onAutoForward": "openBrowserOnce"
+    }
+  },
+
+  "customizations": {
+    "vscode": {
+      "extensions": ["ms-python.python"]
+    }
+  }
+}
