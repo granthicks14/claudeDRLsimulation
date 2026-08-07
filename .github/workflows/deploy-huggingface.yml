@@ -1,0 +1,39 @@
+# Optional: automatically push this repo to your Hugging Face Space on every
+# commit to main, so the live dashboard stays in sync with GitHub.
+#
+# One-time setup (see docs/HUGGINGFACE_SETUP.md):
+#   1. Create a Docker Space on huggingface.co.
+#   2. Create an HF access token (write) and add it as a GitHub repo secret named HF_TOKEN.
+#   3. Add a GitHub repo variable HF_SPACE = "your-username/your-space-name".
+# Then this workflow mirrors the repo into the Space automatically.
+name: Deploy to Hugging Face Spaces
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    # Only runs if you've configured the HF_SPACE variable.
+    if: ${{ vars.HF_SPACE != '' }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Use the Hugging Face front-matter README
+        run: cp deploy/huggingface/README.md README.md
+
+      - name: Push to Hugging Face Space
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+          HF_SPACE: ${{ vars.HF_SPACE }}
+        run: |
+          git config user.name "github-actions"
+          git config user.email "github-actions@users.noreply.github.com"
+          git add -A
+          git commit -m "Sync from GitHub" || echo "nothing to commit"
+          git push --force "https://user:${HF_TOKEN}@huggingface.co/spaces/${HF_SPACE}" HEAD:main
