@@ -150,6 +150,12 @@ a persistent `/app/experiments` volume so training survives restarts. See
 [`docs/DEPLOY.md`](docs/DEPLOY.md). (Vercel can only host the static `index.html`
 project page — it can't run the training process.)
 
+**Free options:** host it free on **Hugging Face Spaces** (2 vCPU / 16 GB RAM
+Docker), or just run it in **Google Colab** —
+[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/granthicks14/claudeDRLsimulation/blob/main/notebooks/MileRunner_Colab.ipynb)
+— see [`docs/DEPLOY.md`](docs/DEPLOY.md#free-hosting-options). (Free 512 MB tiers
+like Render's free plan will run out of memory once PyTorch loads.)
+
 ## Scaling from a laptop to a cluster
 
 The same code scales by config (`configs/`):

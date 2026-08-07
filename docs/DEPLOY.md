@@ -36,6 +36,48 @@ Both processes share `/app/experiments` (database, checkpoints, status). Mount a
 | `MILE_DB` | `experiments/milerunner.db` | Database path the dashboard reads. |
 | `MILE_STATUS` | `experiments/status.json` | Status file the dashboard reads. |
 
+## Free hosting options
+
+Anything that runs this must give the container **~1–2 GB RAM** (PyTorch alone
+needs several hundred MB), so the tiny 512 MB free tiers will OOM. These free
+options work:
+
+### Hugging Face Spaces — free hosted URL (recommended)
+
+Free Spaces get **2 vCPU + 16 GB RAM** and run Docker. Steps:
+
+1. Create a Hugging Face account, then **New → Space** → choose **Docker** (blank
+   template), name it e.g. `milerunner`.
+2. Put this project in the Space repo, with `deploy/huggingface/README.md` as the
+   Space's root `README.md` (its YAML header tells HF to build the `Dockerfile`
+   and route port 8050):
+
+   ```bash
+   git clone https://huggingface.co/spaces/<your-username>/milerunner
+   cd milerunner
+   git pull https://github.com/granthicks14/claudeDRLsimulation main --allow-unrelated-histories
+   cp deploy/huggingface/README.md README.md      # HF front-matter README
+   git add -A && git commit -m "MileRunner on Spaces" && git push
+   ```
+3. The Space builds and serves at `https://<your-username>-milerunner.hf.space`.
+
+Free-tier storage is **ephemeral** (progress resets on rebuild/long pause) — great
+for a live demo; add persistent storage or use a volume host for long runs.
+
+### Google Colab — easiest free way to just run it
+
+Open **`notebooks/MileRunner_Colab.ipynb`** in Colab and *Run all*. It installs
+everything, starts training in the background, and shows the live dashboard
+inline. Free, no account infrastructure — but Colab sessions are temporary.
+
+[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/granthicks14/claudeDRLsimulation/blob/main/notebooks/MileRunner_Colab.ipynb)
+
+### Oracle Cloud Free Tier — free forever, full control
+
+Oracle's **Always Free** ARM VM (up to 4 cores / 24 GB RAM) can run the Docker
+image 24/7 at no cost. Provision the VM, install Docker, then use the "Any Docker
+host" commands below. More setup, but genuinely free and persistent.
+
 ## Run locally (Docker Compose)
 
 ```bash
