@@ -111,6 +111,18 @@ class ContinuousTrainer:
             json.dump(status, fh, indent=2, default=str)
         os.replace(tmp, self.tcfg.status_path)
 
+        # Sidecar: the current best agent's telemetry, so the dashboard can show
+        # live speed/HR/energy/fatigue curves and the 3D replay every generation
+        # — even before any agent completes a full mile.
+        tele = self.population.latest_best_telemetry
+        if tele:
+            tele_path = os.path.join(os.path.dirname(self.tcfg.status_path) or ".",
+                                     "best_telemetry.json")
+            tmp2 = tele_path + ".tmp"
+            with open(tmp2, "w") as fh:
+                json.dump(tele, fh, default=str)
+            os.replace(tmp2, tele_path)
+
     def _save(self) -> None:
         save_search_state(self._state_path, self.population.state_dict())
 

@@ -70,7 +70,12 @@ def main():
     db = ExperimentDB(args.db)
     exps = {e["name"]: e for e in db.list_experiments()}
     if args.experiment not in exps:
-        raise SystemExit(f"No experiment '{args.experiment}'. Have {list(exps)}")
+        # No data yet — training just started or hasn't been run. Not an error.
+        print(f"No results for experiment '{args.experiment}' yet — the trainer "
+              f"hasn't finished its first generation.\n"
+              f"Let training run for a minute, then re-run this cell. "
+              f"(Experiments found so far: {list(exps) or 'none'}.)")
+        return
     exp_id = exps[args.experiment]["id"]
     summary = db.experiment_summary(exp_id)
     rec = db.best_mile_time(exp_id)

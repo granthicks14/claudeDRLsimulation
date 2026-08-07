@@ -15,11 +15,14 @@ hardware:
 env:
   # Shorter episode cap -> faster generations on limited CPU (agents that can't
   # yet finish a mile still terminate on falling). Raise on a bigger instance.
-  max_time_s: 240.0
+  max_time_s: 150.0
 
 population:
-  size: 6
-  timesteps_per_gen: 3000
+  # Small, short generations so the dashboard shows the FIRST results within a
+  # minute or two and updates often. Elites keep training across generations, so
+  # learning still compounds — raise these for stronger (slower-to-appear) runs.
+  size: 4
+  timesteps_per_gen: 800
   algos: [ppo, sac, a2c]
 
 trainer:

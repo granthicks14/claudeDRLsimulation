@@ -46,6 +46,7 @@ class Individual:
     total_timesteps: int = 0
     age: int = 0                           # generations survived
     last_result: Optional[Dict[str, Any]] = None
+    telemetry: Dict[str, Any] = field(default_factory=dict, repr=False)  # transient
 
     def arch_signature(self) -> tuple:
         g = self.genome
@@ -88,6 +89,9 @@ class Population:
         self.total_timesteps = 0
         self.best: Optional[Individual] = None
         self.best_record: Optional[Dict[str, Any]] = None
+        # Telemetry of the current generation's best agent (finished or not), so
+        # the dashboard can always show live curves before any full mile exists.
+        self.latest_best_telemetry: Dict[str, Any] = {}
         self._train_fn = train_fn or self._default_train
         self._eval_fn = eval_fn or self._default_eval
         os.makedirs(os.path.join(root, experiment_name), exist_ok=True)
@@ -172,6 +176,7 @@ class Population:
             result = self._eval_fn(ind)
             ind.fitness = result.fitness
             ind.last_result = result.to_metrics()
+            ind.telemetry = getattr(result, "telemetry", {}) or {}
             self.db.log_evaluation(self.exp_id, ind.genome.genome_id,
                                    self.generation, {
                                        **result.to_metrics(),
@@ -183,6 +188,10 @@ class Population:
         best = self.individuals[0]
         if self.best is None or best.fitness > self.best.fitness:
             self.best = best
+        # Publish the best agent's telemetry so the dashboard shows live curves
+        # even before any agent completes a full mile.
+        if best.telemetry:
+            self.latest_best_telemetry = best.telemetry
         fits = [i.fitness for i in self.individuals]
         best_mile = None
         if best.last_result and best.last_result.get("finished"):

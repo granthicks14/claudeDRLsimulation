@@ -29,21 +29,20 @@ def _load_status(path: str) -> Dict[str, Any]:
         return {}
 
 
-def _best_telemetry(db: ExperimentDB, exp_id: int) -> Dict[str, Any]:
+def _best_telemetry(db: ExperimentDB, exp_id: int,
+                    best_tele_path: str = "experiments/best_telemetry.json") -> Dict[str, Any]:
     rec = db.best_mile_time(exp_id)
-    if not rec:
-        # fall back to the most recent record even if not a finished mile
-        rows = db._conn.execute(
-            "SELECT * FROM records WHERE experiment_id=? ORDER BY created_at DESC LIMIT 1",
-            (exp_id,)).fetchone()
-        rec = dict(rows) if rows else None
-    if not rec:
-        return {}
+    if rec:
+        try:
+            return {"record": rec, "telemetry": json.loads(rec.get("telemetry_json") or "{}")}
+        except Exception:
+            return {"record": rec, "telemetry": {}}
+    # No finished mile yet — use the live best-agent telemetry sidecar.
     try:
-        tele = json.loads(rec.get("telemetry_json") or "{}")
+        with open(best_tele_path) as fh:
+            return {"record": None, "telemetry": json.load(fh)}
     except Exception:
-        tele = {}
-    return {"record": rec, "telemetry": tele}
+        return {}
 
 
 def _replay_from_telemetry(tele: Dict[str, Any]) -> Replay:

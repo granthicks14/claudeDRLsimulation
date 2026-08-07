@@ -29,6 +29,7 @@ from milerunner.database.experiment_db import ExperimentDB
 
 DB = os.environ.get("MILE_DB", "experiments/milerunner.db")
 STATUS = os.environ.get("MILE_STATUS", "experiments/status.json")
+BEST_TELE = os.environ.get("MILE_BEST_TELE", "experiments/best_telemetry.json")
 EXPERIMENT = os.environ.get("MILE_EXPERIMENT", "hosted")
 CONFIG = os.environ.get("MILE_CONFIG", "hosted")
 
@@ -65,19 +66,19 @@ def _experiment_id(db: ExperimentDB):
 
 
 def _best_telemetry(db: ExperimentDB, exp_id):
+    # Prefer a completed-mile record (has a real mile_time); otherwise fall back
+    # to the current best agent's live telemetry sidecar written each generation.
     rec = db.best_mile_time(exp_id)
-    if not rec:
-        row = db._conn.execute(
-            "SELECT * FROM records WHERE experiment_id=? ORDER BY created_at DESC LIMIT 1",
-            (exp_id,)).fetchone()
-        rec = dict(row) if row else None
-    if not rec:
-        return None, {}
+    if rec:
+        try:
+            return rec, json.loads(rec.get("telemetry_json") or "{}")
+        except Exception:
+            return rec, {}
     try:
-        tele = json.loads(rec.get("telemetry_json") or "{}")
+        with open(BEST_TELE) as fh:
+            return None, json.load(fh)
     except Exception:
-        tele = {}
-    return rec, tele
+        return None, {}
 
 
 def _replay(tele: dict) -> Replay:
