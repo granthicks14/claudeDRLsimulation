@@ -48,6 +48,15 @@ class EnvConfig:
     randomize_weather: bool = False
     randomize_body: bool = False
     domain_randomization: bool = False
+    # --- Auto-restart (early reset) to gather more experience ---
+    # If the agent makes no forward progress for this many seconds, end the
+    # episode early (truncation, not a fall) so it resets and tries again.
+    stall_timeout_s: float = 0.0        # 0 = disabled
+    stall_min_progress_m: float = 1.0   # progress smaller than this counts as "stalled"
+    # Hard pace checkpoint: by ``pace_deadline_s`` the runner must have covered
+    # at least ``pace_deadline_m``; otherwise the episode restarts.
+    pace_deadline_s: float = 0.0        # 0 = disabled
+    pace_deadline_m: float = 0.0
 
 
 class MileRunEnv(gym.Env if gym is not None else object):
@@ -105,6 +114,9 @@ class MileRunEnv(gym.Env if gym is not None else object):
         self.telemetry: Dict[str, list] = {}
         self.episode_reward = 0.0
         self.peak_speed = 0.0
+        self.max_distance = 0.0            # furthest point reached (for stall check)
+        self.last_progress_time = 0.0      # when max_distance last improved
+        self.restarted_reason = None       # why an auto-restart truncation fired
 
     # ------------------------------------------------------------------ #
     def reset(self, *, seed: Optional[int] = None,
@@ -224,8 +236,14 @@ class MileRunEnv(gym.Env if gym is not None else object):
         reward = rb.total
         self.episode_reward += reward
 
+        # --- Auto-restart bookkeeping: track furthest progress & when it moved.
+        if self.distance > self.max_distance + self.cfg.stall_min_progress_m:
+            self.max_distance = self.distance
+            self.last_progress_time = self.time_s
+
         terminated = False
         truncated = False
+        self.restarted_reason = None
         if fell and self.cfg.terminate_on_fall:
             terminated = True
         if estate.exhausted and self.cfg.terminate_on_exhaustion:
@@ -234,6 +252,17 @@ class MileRunEnv(gym.Env if gym is not None else object):
             terminated = True
         if self.time_s >= self.cfg.max_time_s:
             truncated = True
+        # Stall: no forward progress for stall_timeout_s -> restart for more reps.
+        if (self.cfg.stall_timeout_s > 0 and not self.finished
+                and (self.time_s - self.last_progress_time) >= self.cfg.stall_timeout_s):
+            truncated = True
+            self.restarted_reason = "stalled"
+        # Pace checkpoint: too far behind schedule by the deadline -> restart.
+        if (self.cfg.pace_deadline_s > 0 and not self.finished
+                and self.time_s >= self.cfg.pace_deadline_s
+                and self.distance < self.cfg.pace_deadline_m):
+            truncated = True
+            self.restarted_reason = "behind_pace"
 
         self.prev_speed = speed
         self.prev_x = x
@@ -307,6 +336,7 @@ class MileRunEnv(gym.Env if gym is not None else object):
             "finished": self.finished,
             "finish_time": self.finish_time,
             "fell": fell,
+            "restarted_reason": self.restarted_reason,
             "episode_reward": self.episode_reward,
         }
         if rb is not None:
