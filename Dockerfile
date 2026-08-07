@@ -32,6 +32,11 @@ RUN pip install -r requirements.txt gunicorn
 COPY . .
 RUN pip install -e . || true
 
+# Pre-create the data dirs and make them world-writable so the container works
+# whether the platform runs it as root (Render/Fly/local) or as a non-root user
+# (Hugging Face Spaces runs Docker as UID 1000).
+RUN mkdir -p /app/experiments /app/checkpoints && chmod -R 777 /app/experiments /app/checkpoints
+
 # Persist training progress here (mount a volume at this path on your host).
 VOLUME ["/app/experiments"]
 
