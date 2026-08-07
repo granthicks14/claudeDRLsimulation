@@ -19,6 +19,7 @@ from ..biomech.muscles import MUSCLE_GROUPS
 from ..database.experiment_db import ExperimentDB
 from . import figures as F
 from .replay import Replay, animated_skeleton_figure
+from .track_view import track_figure
 
 
 def _load_status(path: str) -> Dict[str, Any]:
@@ -103,8 +104,11 @@ def create_app(db_path: str = "experiments/milerunner.db",
         ]),
         dcc.Interval(id="tick", interval=5000, n_intervals=0),
         html.Div(style={"display": "flex", "flexWrap": "wrap"}, children=[
-            html.Div(dcc.Graph(id="g-progress"), style=card_style),
+            html.Div(dcc.Graph(id="g-track"), style={**card_style, "minWidth": "460px", "flex": "2"}),
             html.Div(dcc.Graph(id="g-replay"), style={**card_style, "minWidth": "420px"}),
+        ]),
+        html.Div(style={"display": "flex", "flexWrap": "wrap"}, children=[
+            html.Div(dcc.Graph(id="g-progress"), style=card_style),
         ]),
         html.Div(style={"display": "flex", "flexWrap": "wrap"}, children=[
             html.Div(dcc.Graph(id="g-speed"), style=card_style),
@@ -129,6 +133,7 @@ def create_app(db_path: str = "experiments/milerunner.db",
         [Output("kpi-mile", "children"), Output("kpi-gen", "children"),
          Output("kpi-steps", "children"), Output("kpi-pop", "children"),
          Output("kpi-finish", "children"),
+         Output("g-track", "figure"),
          Output("g-progress", "figure"), Output("g-replay", "figure"),
          Output("g-speed", "figure"), Output("g-cadence", "figure"),
          Output("g-hr", "figure"), Output("g-oxygen", "figure"),
@@ -165,6 +170,7 @@ def create_app(db_path: str = "experiments/milerunner.db",
 
         return (
             mile_txt, gen_txt, steps_txt, pop_txt, finish_txt,
+            track_figure(tele),
             F.training_progress(history), fig_replay,
             F.speed_curve(tele), F.cadence_curve(tele), F.heart_rate_curve(tele),
             F.oxygen_curve(tele), F.energy_curve(tele), F.lactate_temp_curve(tele),

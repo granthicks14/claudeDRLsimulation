@@ -41,6 +41,10 @@ def build_env_config(cfg: Config) -> EnvConfig:
         reset_noise=float(e.get("reset_noise", 0.02)),
         randomize_weather=bool(e.get("randomize_weather", False)),
         randomize_body=bool(e.get("randomize_body", False)),
+        stall_timeout_s=float(e.get("stall_timeout_s", 0.0)),
+        stall_min_progress_m=float(e.get("stall_min_progress_m", 1.0)),
+        pace_deadline_s=float(e.get("pace_deadline_s", 0.0)),
+        pace_deadline_m=float(e.get("pace_deadline_m", 0.0)),
     )
 
 

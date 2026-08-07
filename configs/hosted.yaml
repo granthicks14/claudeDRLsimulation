@@ -12,10 +12,32 @@ hardware:
   n_envs: 1
   subprocess: false
 
+# The OPTIMAL build for running a mile (a light, high-VO2max middle-distance
+# physique) instead of the average male. This is a *body*, not a strategy — the
+# AI still has to learn how to run it.
+body:
+  name: elite_miler
+  height_m: 1.80
+  mass_kg: 64.0
+  age_years: 25.0
+  sex: male
+  vo2max_ml_kg_min: 80.0            # elite middle-distance aerobic power
+  critical_speed_mps: 6.0          # ~83% of VO2max pace (kept consistent)
+  d_prime_m: 245.0                 # strong anaerobic reserve
+  hr_max_bpm: 200.0
+  lactate_threshold_frac: 0.90
+  cost_of_transport_j_kg_m: 3.7    # excellent running economy
+
 env:
   # Shorter episode cap -> faster generations on limited CPU (agents that can't
   # yet finish a mile still terminate on falling). Raise on a bigger instance.
   max_time_s: 150.0
+  # Auto-restart to gather more experience: if the runner makes no progress for
+  # 6 s, or is still short of 30 m after 20 s, end the episode early and retry.
+  stall_timeout_s: 6.0
+  stall_min_progress_m: 1.0
+  pace_deadline_s: 20.0
+  pace_deadline_m: 30.0
 
 population:
   # Small, short generations so the dashboard shows the FIRST results within a

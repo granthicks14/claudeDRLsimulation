@@ -2,6 +2,19 @@
 # Each block can be merged into a run to explore how physiology shapes the
 # optimal mile. CS values are ~90% of each body's VO2max pace for consistency.
 
+elite_miler:            # the optimal build for the mile — light, huge VO2max
+  body:
+    name: elite_miler
+    height_m: 1.80
+    mass_kg: 64.0
+    age_years: 25.0
+    vo2max_ml_kg_min: 80.0
+    critical_speed_mps: 6.0
+    d_prime_m: 245.0
+    hr_max_bpm: 200.0
+    lactate_threshold_frac: 0.90
+    cost_of_transport_j_kg_m: 3.7
+
 lightweight_runner:
   body:
     name: lightweight_runner
