@@ -1,0 +1,29 @@
+# Render.com Blueprint — one-click hosted MileRunner dashboard.
+#
+# Deploy:  push to GitHub → on render.com "New +" → "Blueprint" → pick this repo.
+# Render builds the Dockerfile, runs the trainer + dashboard, and gives you a
+# public https URL. A 1 GB persistent disk preserves training progress across
+# restarts and deploys.
+#
+# Note: the free instance type (512 MB) may run out of memory once PyTorch loads;
+# the "starter" plan (or larger) is recommended.
+services:
+  - type: web
+    name: milerunner
+    runtime: docker
+    plan: starter                 # 512MB free tier can OOM with torch; starter+ recommended
+    dockerfilePath: ./Dockerfile
+    healthCheckPath: /
+    autoDeploy: true
+    envVars:
+      - key: MILE_CONFIG
+        value: hosted
+      - key: WEB_WORKERS
+        value: "1"
+      - key: WEB_THREADS
+        value: "4"
+      # Render injects PORT automatically; the app binds to it.
+    disk:
+      name: milerunner-data
+      mountPath: /app/experiments
+      sizeGB: 1
