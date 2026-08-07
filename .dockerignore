@@ -1,0 +1,23 @@
+# Keep the build context small and reproducible.
+.git
+.gitignore
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+
+# Local experiment outputs (regenerated at runtime; do not bake into the image)
+experiments/
+checkpoints/
+runs/
+*.db
+*.db-wal
+*.db-shm
+*.mp4
+*.gif
+best_replay.html
+
+# Docs/media not needed at runtime
+*.ipynb
+.DS_Store

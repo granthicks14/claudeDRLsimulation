@@ -1,0 +1,24 @@
+# Run the hosted dashboard + trainer locally with one command:
+#
+#   docker compose up --build
+#   # then open http://localhost:8050
+#
+# Training progress persists in the named volume `milerunner_data`, so
+# `docker compose down` / `up` resumes where it left off.
+services:
+  milerunner:
+    build: .
+    image: milerunner:latest
+    ports:
+      - "8050:8050"
+    environment:
+      MILE_CONFIG: hosted
+      PORT: "8050"
+      WEB_WORKERS: "1"
+      WEB_THREADS: "4"
+    volumes:
+      - milerunner_data:/app/experiments
+    restart: unless-stopped
+
+volumes:
+  milerunner_data:

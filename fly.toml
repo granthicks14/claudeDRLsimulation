@@ -1,0 +1,40 @@
+# Fly.io configuration for the hosted MileRunner dashboard.
+#
+# Deploy:
+#   fly launch --no-deploy      # or: fly apps create milerunner
+#   fly volumes create milerunner_data --size 1
+#   fly deploy
+#
+# `app` must be globally unique — change it to your own name before deploying.
+app = "milerunner"
+primary_region = "iad"
+
+[build]
+  dockerfile = "Dockerfile"
+
+[env]
+  MILE_CONFIG = "hosted"
+  PORT = "8050"
+  WEB_WORKERS = "1"
+  WEB_THREADS = "4"
+
+[http_service]
+  internal_port = 8050
+  force_https = true
+  auto_stop_machines = "suspend"   # save money when idle; wakes on request
+  auto_start_machines = true
+  min_machines_running = 0
+
+  [http_service.concurrency]
+    type = "requests"
+    soft_limit = 20
+    hard_limit = 40
+
+# Persist training progress (database + checkpoints) across restarts.
+[mounts]
+  source = "milerunner_data"
+  destination = "/app/experiments"
+
+[[vm]]
+  size = "shared-cpu-1x"
+  memory = "1gb"                    # bump to 2gb for larger populations

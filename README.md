@@ -134,6 +134,22 @@ muscle group every step, so the body can never exceed human capability.
 
 ---
 
+## Hosted live dashboard (Docker)
+
+Run the trainer **and** the live web dashboard together in one container and
+deploy it to any host that runs long‑lived containers:
+
+```bash
+docker compose up --build        # local:  http://localhost:8050
+```
+
+One‑click cloud deploys are included: **Render** (`render.yaml` Blueprint),
+**Fly.io** (`fly.toml`), Railway, or any Docker host. The image runs
+`scripts/run.py` in the background and serves the dashboard via gunicorn, sharing
+a persistent `/app/experiments` volume so training survives restarts. See
+[`docs/DEPLOY.md`](docs/DEPLOY.md). (Vercel can only host the static `index.html`
+project page — it can't run the training process.)
+
 ## Scaling from a laptop to a cluster
 
 The same code scales by config (`configs/`):

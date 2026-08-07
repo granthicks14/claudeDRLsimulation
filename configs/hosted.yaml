@@ -1,0 +1,28 @@
+# Configuration tuned for a modest hosted container (1-2 GB RAM, shared CPU).
+# Keeps the population small and generations short so the live dashboard shows
+# visible progress quickly, while still training autonomously and indefinitely.
+# All experiment state (DB, checkpoints, status) lives under experiments/ so a
+# single persistent volume preserves progress across restarts.
+base: default
+
+experiment_name: hosted
+
+hardware:
+  device: cpu
+  n_envs: 1
+  subprocess: false
+
+env:
+  # Shorter episode cap -> faster generations on limited CPU (agents that can't
+  # yet finish a mile still terminate on falling). Raise on a bigger instance.
+  max_time_s: 240.0
+
+population:
+  size: 6
+  timesteps_per_gen: 3000
+  algos: [ppo, sac, a2c]
+
+trainer:
+  max_generations: 0                       # run forever
+  checkpoint_root: experiments/checkpoints # keep everything under one volume
+  save_every: 1
