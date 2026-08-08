@@ -79,18 +79,35 @@ def _oval_outline_scaled(scale: float, n: int = 240):
     return xs, ys
 
 
-def track_figure(telemetry: Dict, max_frames: int = 120):
-    """Animated oval with the runner's icon; press ▶ to watch the mile."""
+def _furthest_marker(best_distance, go):
+    """A persistent ghost marker at the furthest distance ever reached."""
+    if not best_distance or best_distance <= 0:
+        return []
+    x, y = track_position(best_distance)
+    return [go.Scatter(x=[x], y=[y], mode="markers+text", text=["⚑"],
+                       textposition="top center", textfont=dict(size=16, color="#34d399"),
+                       marker=dict(size=10, color="#34d399", symbol="x"),
+                       hoverinfo="text",
+                       hovertext=[f"furthest: {best_distance:.0f} m"], showlegend=False)]
+
+
+def track_figure(telemetry: Dict, max_frames: int = 120, best_distance=None):
+    """Animated oval with the runner's icon; press ▶ to watch the mile.
+
+    ``best_distance`` (m) draws a persistent ⚑ marker at the furthest point any
+    agent has ever reached, so progress shows even when the current runner stalls.
+    """
     import plotly.graph_objects as go
 
     dist = telemetry.get("distance") or []
     times = telemetry.get("t") or []
     if not dist:
-        fig = go.Figure(_base_traces([], go))
+        fig = go.Figure(_base_traces([], go) + _furthest_marker(best_distance, go))
         _layout(fig, go)
-        fig.add_annotation(text="waiting for the runner…", showarrow=False,
-                           xref="paper", yref="paper", x=0.5, y=0.5,
-                           font=dict(color="#9ca3af"))
+        if not best_distance:
+            fig.add_annotation(text="waiting for the runner…", showarrow=False,
+                               xref="paper", yref="paper", x=0.5, y=0.5,
+                               font=dict(color="#9ca3af"))
         return fig
 
     n = len(dist)
@@ -112,7 +129,7 @@ def track_figure(telemetry: Dict, max_frames: int = 120):
                        hoverinfo="skip", showlegend=False),
         ]
 
-    base = _base_traces(dist, go)
+    base = _base_traces(dist, go) + _furthest_marker(best_distance, go)
     fig = go.Figure(data=base + runner_trace(idx[0]))
     frames = []
     for k in idx:

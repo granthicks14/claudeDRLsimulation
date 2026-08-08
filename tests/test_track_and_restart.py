@@ -95,6 +95,26 @@ def test_race_figure_builds_multiple_lanes():
     assert len(d["data"]) >= 2
 
 
+def test_distance_stats_and_progress_chart(tmp_path):
+    from milerunner.dashboard import figures as F
+    from milerunner.database.experiment_db import ExperimentDB
+    db = ExperimentDB(str(tmp_path / "d.db"))
+    exp = db.create_experiment("e", {})
+    for gen, dist in [(0, 100.0), (0, 150.0), (1, 320.0)]:
+        db.log_evaluation(exp, "g", gen, {"distance": dist, "fitness": 1.0,
+                                          "mean_speed": 3.0})
+    assert db.max_distance(exp) == pytest.approx(320.0)
+    rows = db.distance_by_generation(exp)
+    assert len(rows) == 2 and rows[-1]["distance"] == pytest.approx(320.0)
+    assert len(F.distance_progress(rows).to_dict()["data"]) >= 1
+
+
+def test_track_furthest_marker_shown():
+    from milerunner.dashboard.track_view import track_figure
+    d = track_figure({}, best_distance=250.0).to_dict()
+    assert any("⚑" in str(tr.get("text", "")) for tr in d["data"])
+
+
 def test_render3d_gracefully_disabled_without_gl():
     # No GL backend in CI -> gl_available False and render returns None, no crash.
     from milerunner.dashboard.render3d import gl_available, render_best_video
