@@ -24,7 +24,8 @@ import gradio as gr
 
 from milerunner.biomech.muscles import MUSCLE_GROUPS
 from milerunner.dashboard import figures as F
-from milerunner.dashboard.replay import Replay, animated_skeleton_figure
+from milerunner.dashboard.replay import (Replay, animated_skeleton_figure,
+                                         side_run_figure)
 from milerunner.dashboard.track_view import track_figure
 from milerunner.database.experiment_db import ExperimentDB
 
@@ -105,7 +106,8 @@ def refresh():
                "The first numbers and charts appear within a couple of minutes — "
                "this panel refreshes automatically.")
         empty = F._empty("waiting for data…")
-        return (kpi, track_figure({}), empty, empty, empty, empty, empty, empty, empty, empty)
+        return (kpi, track_figure({}), side_run_figure(Replay()), empty, empty,
+                empty, empty, empty, empty, empty, empty)
 
     hist = db.generation_history(exp_id)
     rec, tele = _best_telemetry(db, exp_id)
@@ -119,17 +121,19 @@ def refresh():
         f"**Finishers:** {status.get('last_summary', {}).get('n_finished', '—')}"
     )
     fatigue = {g: tele.get(f"fatigue_{g}", []) for g in MUSCLE_GROUPS}
+    rp = _replay(tele)
     return (
         kpi,
         track_figure(tele),
+        side_run_figure(rp),
         F.training_progress(hist),
+        animated_skeleton_figure(rp),
         F.speed_curve(tele),
         F.heart_rate_curve(tele),
         F.cadence_curve(tele),
         F.oxygen_curve(tele),
         F.energy_curve(tele),
         F.muscle_fatigue_heatmap(fatigue, MUSCLE_GROUPS, distance=tele.get("distance")),
-        animated_skeleton_figure(_replay(tele)),
     )
 
 
@@ -142,14 +146,15 @@ def build_demo() -> "gr.Blocks":
             "this Space; the charts below refresh automatically."
         )
         kpi = gr.Markdown()
-        # The "watch the mile" view: the runner's icon going around a 400 m oval.
+        # The two "watch the AI run" views: a side-view runner + the oval track.
         with gr.Row():
-            g_track = gr.Plot(label="🏁 Watch the mile — runner's position on the track")
-            g_replay = gr.Plot(label="Best-agent 3D replay")
+            g_side = gr.Plot(label="🎥 Watch the AI run (side view)")
+            g_track = gr.Plot(label="🏁 Position on the 400 m track")
         with gr.Row():
             g_prog = gr.Plot(label="Training progress")
-            g_speed = gr.Plot(label="Speed")
+            g_replay = gr.Plot(label="Best-agent 3D replay")
         with gr.Row():
+            g_speed = gr.Plot(label="Speed")
             g_hr = gr.Plot(label="Heart rate")
             g_cad = gr.Plot(label="Cadence")
         with gr.Row():
@@ -157,7 +162,8 @@ def build_demo() -> "gr.Blocks":
             g_energy = gr.Plot(label="Energy reserves")
             g_fat = gr.Plot(label="Muscle fatigue")
 
-        outputs = [kpi, g_track, g_prog, g_speed, g_hr, g_cad, g_o2, g_energy, g_fat, g_replay]
+        outputs = [kpi, g_track, g_side, g_prog, g_replay,
+                   g_speed, g_hr, g_cad, g_o2, g_energy, g_fat]
         # Initial paint + auto-refresh every 6 seconds.
         demo.load(refresh, outputs=outputs)
         timer = gr.Timer(6)

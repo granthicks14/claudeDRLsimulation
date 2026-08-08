@@ -159,6 +159,87 @@ def animated_skeleton_figure(replay: Replay, max_frames: int = 120):
     return fig
 
 
+def side_run_figure(replay: "Replay", max_frames: int = 120, window_m: float = 4.0):
+    """Side-view "watch the AI run" animation, like the AI-learns-to-run videos.
+
+    Draws the humanoid's body in profile (forward = x, height = z), with the
+    camera following the runner so he stays centred while a marked ground scrolls
+    past beneath him — giving the sense of running across the track. Built from
+    the captured body positions, so it needs no OpenGL and runs anywhere.
+    """
+    import plotly.graph_objects as go
+
+    frames = replay.frames
+    if not frames:
+        fig = go.Figure()
+        fig.update_layout(template="plotly_dark", margin=dict(l=0, r=0, t=30, b=0),
+                          title="🎥 Watch the AI run")
+        fig.add_annotation(text="waiting for the runner…", showarrow=False,
+                           xref="paper", yref="paper", x=0.5, y=0.5,
+                           font=dict(color="#9ca3af"))
+        return fig
+
+    idxs = np.linspace(0, len(frames) - 1, min(max_frames, len(frames))).astype(int)
+    half = window_m / 2.0
+
+    # Which bones are "limbs" (thick) vs torso; head drawn as a circle.
+    limb_bones = [(a, b) for a, b in BONES if b != "head"]
+
+    def body_traces(f):
+        cx = float(f["pelvis"][0])          # camera centres on the pelvis
+        # ground + distance ticks (integer metres near the runner)
+        gx = [-half, half]
+        traces = [go.Scatter(x=gx, y=[0, 0], mode="lines",
+                             line=dict(color="#6b7280", width=3), hoverinfo="skip")]
+        lo, hi = int(np.floor(cx - half)), int(np.ceil(cx + half))
+        tick_x, tick_y = [], []
+        for m in range(lo, hi + 1):
+            tick_x += [m - cx, m - cx, None]
+            tick_y += [0, -0.12, None]
+        traces.append(go.Scatter(x=tick_x, y=tick_y, mode="lines",
+                                 line=dict(color="#4b5563", width=2), hoverinfo="skip"))
+        # limbs (thick, rounded)
+        ex, ey = [], []
+        for a, b in limb_bones:
+            pa, pb = f[a], f[b]
+            ex += [pa[0] - cx, pb[0] - cx, None]
+            ey += [pa[2], pb[2], None]
+        traces.append(go.Scatter(x=ex, y=ey, mode="lines",
+                                 line=dict(color="#22d3ee", width=11), hoverinfo="skip"))
+        # head
+        hx = float(f["head"][0] - cx)
+        hz = float(f["head"][2])
+        traces.append(go.Scatter(x=[hx], y=[hz], mode="markers",
+                                 marker=dict(size=20, color="#f59e0b"), hoverinfo="skip"))
+        return traces
+
+    fig = go.Figure(data=body_traces(frames[idxs[0]]))
+    plot_frames = []
+    for i in idxs:
+        f = frames[i]
+        dist = float(f["pelvis"][0])
+        t = replay.times[i] if i < len(replay.times) else 0.0
+        plot_frames.append(go.Frame(
+            data=body_traces(f),
+            layout=go.Layout(title=f"🎥 The AI running  ·  {dist:5.0f} m  ·  {t:4.0f} s"),
+        ))
+    fig.frames = plot_frames
+    fig.update_layout(
+        template="plotly_dark", showlegend=False,
+        margin=dict(l=0, r=0, t=36, b=0),
+        title=f"🎥 The AI running  ·  {float(frames[idxs[0]]['pelvis'][0]):.0f} m",
+        xaxis=dict(visible=False, range=[-half, half], scaleanchor="y", scaleratio=1),
+        yaxis=dict(visible=False, range=[-0.3, 2.2]),
+        plot_bgcolor="#0b1220",
+        updatemenus=[dict(type="buttons", showactive=False, x=0.02, y=0.08,
+                          xanchor="left",
+                          buttons=[dict(label="▶ Watch", method="animate",
+                                        args=[None, dict(frame=dict(duration=50, redraw=True),
+                                                         fromcurrent=True)])])],
+    )
+    return fig
+
+
 def render_mujoco_video(model, env, out_path: str, stride: int = 2,
                         width: int = 640, height: int = 480, fps: int = 50) -> Optional[str]:
     """Export a photorealistic MuJoCo video. Requires a working GL backend.
