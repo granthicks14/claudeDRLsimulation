@@ -22,15 +22,16 @@ import threading
 
 import numpy as np
 
-# Pick a MuJoCo rendering backend so the photorealistic video works for FREE:
-#   • a GPU (e.g. Colab GPU runtime)  -> EGL  (fast)
-#   • plain CPU (free Colab / Codespaces / HF) -> OSMesa (software GL, no GPU)
-# OSMesa needs the system libOSMesa (the setup cells install it). If nothing
-# renders, the Plotly views still work.
-if not os.environ.get("MUJOCO_GL"):
-    _has_gpu = (os.path.exists("/proc/driver/nvidia/version")
-                or shutil.which("nvidia-smi") is not None)
-    os.environ["MUJOCO_GL"] = "egl" if _has_gpu else "osmesa"
+# IMPORTANT: we do NOT set MUJOCO_GL at import time. Setting it makes
+# `import mujoco` eagerly load an OpenGL backend, which CRASHES the import when
+# OSMesa/EGL isn't perfectly available — and the trainer subprocess (which does
+# physics only and needs no GL) would inherit that env and die silently.
+# Instead the render path (only) selects a backend just before rendering, in the
+# app process, isolated from the trainer.
+
+def _has_gpu() -> bool:
+    return (os.path.exists("/proc/driver/nvidia/version")
+            or shutil.which("nvidia-smi") is not None)
 
 import gradio as gr
 
@@ -68,6 +69,10 @@ def _maybe_render_video():
     background (throttled to once per new best telemetry). No-op on CPU."""
     global _VIDEO_PATH, _LAST_RENDER_KEY
     try:
+        # Choose the render backend HERE (never at import time): GPU->EGL, else
+        # OSMesa (software GL on CPU). This only affects the app process, not the
+        # trainer. If OSMesa/EGL isn't available the import fails -> caught below.
+        os.environ.setdefault("MUJOCO_GL", "egl" if _has_gpu() else "osmesa")
         from milerunner.dashboard.render3d import gl_available
         if not gl_available():
             return
@@ -98,19 +103,50 @@ def _maybe_render_video():
     threading.Thread(target=_work, daemon=True).start()
 
 _trainer_proc = None
+_trainer_restarts = 0
+_trainer_error = None
+_MAX_RESTARTS = 3
+
+
+def _log_tail(n_chars: int = 2500) -> str:
+    try:
+        with open("experiments/train.log") as fh:
+            return fh.read()[-n_chars:]
+    except Exception:
+        return ""
 
 
 def ensure_trainer_running() -> None:
-    """Start the trainer subprocess once; restart it if it has died."""
-    global _trainer_proc
+    """Start the trainer subprocess; restart on death up to a limit, and capture
+    the error so the dashboard can show it instead of hanging on 'waiting'."""
+    global _trainer_proc, _trainer_restarts, _trainer_error
     if _trainer_proc is not None and _trainer_proc.poll() is None:
-        return
+        return                                   # already running
+    if _trainer_proc is not None:                # it died since last check
+        _trainer_error = _log_tail()
+        _trainer_restarts += 1
+        if _trainer_restarts > _MAX_RESTARTS:
+            return                               # give up; leave the error for the UI
+        print(f"[app] trainer exited — restart {_trainer_restarts}/{_MAX_RESTARTS}", flush=True)
+
     os.makedirs("experiments", exist_ok=True)
+    # CRITICAL: the trainer does physics only and needs NO OpenGL. Strip
+    # MUJOCO_GL from its environment so `import mujoco` stays lazy about GL and
+    # can't crash on a missing OSMesa/EGL backend (that was the
+    # 'Waiting for runner' bug).
+    env = dict(os.environ)
+    env.pop("MUJOCO_GL", None)
     logf = open("experiments/train.log", "a")
+    print(f"[app] launching trainer: {sys.executable} scripts/run.py --config {CONFIG}", flush=True)
     _trainer_proc = subprocess.Popen(
         [sys.executable, "scripts/run.py", "--config", CONFIG],
-        stdout=logf, stderr=subprocess.STDOUT,
+        stdout=logf, stderr=subprocess.STDOUT, env=env,
     )
+    print(f"[app] trainer started (pid {_trainer_proc.pid})", flush=True)
+
+
+def trainer_alive() -> bool:
+    return _trainer_proc is not None and _trainer_proc.poll() is None
 
 
 def _load_status() -> dict:
@@ -190,6 +226,34 @@ def _stats_markdown(status: dict, tele: dict, furthest: float) -> str:
     )
 
 
+def _startup_message(status: dict, exp_id) -> str:
+    """Friendly startup status — or the actual trainer error if it crashed."""
+    alive = trainer_alive()
+    if _trainer_error and not alive and _trainer_restarts > _MAX_RESTARTS:
+        return (
+            "## ❌ The trainer stopped with an error\n"
+            "The runner process crashed, so no live data can appear. Here are the "
+            "last log lines (also in `experiments/train.log`):\n\n"
+            "```\n" + (_trainer_error[-1600:] or "(no log captured)") + "\n```\n"
+            "Fix the error above, then re-run the launch cell."
+        )
+    gen = status.get("generation")
+    steps = status.get("total_timesteps", 0)
+    detail = (f"Generation {gen} in progress · {steps:,} steps so far"
+              if gen is not None else
+              ("experiment created — training generation 0" if exp_id
+               else "starting the trainer…"))
+    return (
+        "## ⏳ Training is starting…\n"
+        "The runner and live data appear when **generation 0 finishes** — this "
+        "takes about **2–3 minutes on a free CPU**. Nothing is broken while you "
+        "see this; the panel refreshes automatically.\n\n"
+        f"_Trainer:_ **{'running ✅' if alive else 'launching…'}**  ·  {detail}\n\n"
+        "_(Watch progress in the Colab output, or run "
+        "`!tail -n 40 experiments/train.log` in a new cell.)_"
+    )
+
+
 def refresh():
     """Return the stats sidebar + all dashboard figures."""
     ensure_trainer_running()
@@ -200,17 +264,20 @@ def refresh():
     except Exception:
         exp_id = None
 
-    if exp_id is None:
-        stats = ("## ⏳ Training is starting…\n"
-                 "The runner and the first numbers appear within a couple of "
-                 "minutes. This panel updates automatically — keep the tab open.")
-        empty = F._empty("waiting for data…")
+    rec, tele = _best_telemetry(db, exp_id) if exp_id is not None else (None, {})
+    has_runner_data = bool(tele.get("speed"))
+
+    # Until the first generation produces telemetry, show a precise startup/error
+    # status instead of an indefinite "waiting" — and never hide a trainer crash.
+    if not has_runner_data:
+        furthest = db.max_distance(exp_id) if exp_id is not None else 0.0
+        stats = _startup_message(status, exp_id)
+        empty = F._empty("waiting for the first generation to finish…")
         return (stats, _VIDEO_PATH, side_run_figure(Replay()),
-                track_figure({}), F._empty("progress"), race_figure([]),
+                track_figure({}, best_distance=furthest), empty, race_figure(_load_race()),
                 empty, empty, empty, empty, empty, empty, empty, empty)
 
     hist = db.generation_history(exp_id)
-    rec, tele = _best_telemetry(db, exp_id)
     furthest = db.max_distance(exp_id)
     dist_rows = db.distance_by_generation(exp_id)
     stats = _stats_markdown(status, tele, furthest)
@@ -277,9 +344,14 @@ def build_demo() -> "gr.Blocks":
     return demo
 
 
-# Start training as soon as the app is imported/launched.
-ensure_trainer_running()
+# Start training as soon as the app is imported/launched (unless disabled, e.g.
+# in tests). Prints go to the Colab output so startup is visible.
+print("[app] MileRunner starting — launching trainer + building dashboard", flush=True)
+if os.environ.get("MILE_NO_AUTOSTART") != "1":
+    ensure_trainer_running()
 demo = build_demo()
+print("[app] Dashboard ready. Training runs in the background; live data appears "
+      "after generation 0 (~2–3 min on a free CPU).", flush=True)
 
 if __name__ == "__main__":
     demo.launch(server_name="0.0.0.0",
