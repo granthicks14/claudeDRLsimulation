@@ -48,13 +48,15 @@ class TrainerConfig:
 
 class ContinuousTrainer:
     def __init__(self, trainer_cfg: TrainerConfig, pop_cfg: "PopulationConfig",
-                 env_cfg: EnvConfig, full_config: Optional[Dict[str, Any]] = None):
+                 env_cfg: EnvConfig, full_config: Optional[Dict[str, Any]] = None,
+                 body=None):
         # Imported here (not at module top) to avoid an evolution<->training
         # import cycle: population.py imports training helpers.
         from ..evolution.population import Population
         self.tcfg = trainer_cfg
         self.pop_cfg = pop_cfg
         self.env_cfg = env_cfg
+        self.body = body
         self.full_config = full_config or {}
         os.makedirs(self.tcfg.state_dir, exist_ok=True)
         self.db = ExperimentDB(self.tcfg.db_path)
@@ -62,7 +64,7 @@ class ContinuousTrainer:
             self.tcfg.experiment_name, self.full_config)
         self.population = Population(
             pop_cfg, env_cfg, self.db, self.exp_id, self.tcfg.experiment_name,
-            root=self.tcfg.checkpoint_root, seed=self.tcfg.seed,
+            root=self.tcfg.checkpoint_root, seed=self.tcfg.seed, body=body,
         )
         self._stop = False
         self._state_path = os.path.join(self.tcfg.state_dir,
@@ -122,6 +124,16 @@ class ContinuousTrainer:
             with open(tmp2, "w") as fh:
                 json.dump(tele, fh, default=str)
             os.replace(tmp2, tele_path)
+
+        # Sidecar: per-agent race data (one runner per lane) for the race view.
+        race = getattr(self.population, "latest_race", [])
+        if race:
+            race_path = os.path.join(os.path.dirname(self.tcfg.status_path) or ".",
+                                     "race.json")
+            tmp3 = race_path + ".tmp"
+            with open(tmp3, "w") as fh:
+                json.dump(race, fh, default=str)
+            os.replace(tmp3, race_path)
 
     def _save(self) -> None:
         save_search_state(self._state_path, self.population.state_dict())

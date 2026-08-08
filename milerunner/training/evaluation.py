@@ -98,6 +98,7 @@ def evaluate_policy(model, env: Optional[MileRunEnv] = None, *,
     tele: Dict[str, List[float]] = {k: [] for k in keys}
     skeleton: List[Dict[str, List[float]]] = []
     skel_t: List[float] = []
+    qpos: List[List[float]] = []
     total_reward = 0.0
     steps = 0
     while not done:
@@ -129,6 +130,9 @@ def evaluate_policy(model, env: Optional[MileRunEnv] = None, *,
             from ..dashboard.replay import BODIES
             skeleton.append({b: base_env.humanoid.data.body(b).xpos.tolist() for b in BODIES})
             skel_t.append(info["time"])
+            # full generalised coordinates -> lets a GPU renderer reconstruct the
+            # exact pose for a photorealistic MuJoCo video.
+            qpos.append(base_env.humanoid.data.qpos.astype(float).tolist())
 
     if record_telemetry:
         tele = _downsample(tele)
@@ -138,6 +142,8 @@ def evaluate_policy(model, env: Optional[MileRunEnv] = None, *,
         idx = np.linspace(0, n - 1, min(skeleton_frames, n)).astype(int)
         tele["skeleton"] = [skeleton[i] for i in idx]
         tele["skeleton_t"] = [skel_t[i] for i in idx]
+        if qpos:
+            tele["qpos"] = [qpos[i] for i in idx]
 
     finished = bool(info.get("finished"))
     mile_time = info.get("finish_time") if finished else None

@@ -76,9 +76,11 @@ class Population:
                  db: ExperimentDB, exp_id: int, experiment_name: str,
                  root: str = "checkpoints", seed: int = 0,
                  train_fn: Optional[Callable] = None,
-                 eval_fn: Optional[Callable] = None):
+                 eval_fn: Optional[Callable] = None,
+                 body=None):
         self.cfg = cfg
         self.env_config = env_config
+        self.body = body                 # runner body (e.g. the elite miler)
         self.db = db
         self.exp_id = exp_id
         self.experiment_name = experiment_name
@@ -92,6 +94,7 @@ class Population:
         # Telemetry of the current generation's best agent (finished or not), so
         # the dashboard can always show live curves before any full mile exists.
         self.latest_best_telemetry: Dict[str, Any] = {}
+        self.latest_race: List[Dict[str, Any]] = []   # per-agent race data
         self._train_fn = train_fn or self._default_train
         self._eval_fn = eval_fn or self._default_eval
         os.makedirs(os.path.join(root, experiment_name), exist_ok=True)
@@ -116,7 +119,8 @@ class Population:
         g = ind.genome
         env = build_vec_env(
             n_envs=self.cfg.n_envs, reward_weights=g.reward_weights_obj(),
-            config=self.env_config, seed=int(self.rng.integers(0, 1_000_000)),
+            body=self.body, config=self.env_config,
+            seed=int(self.rng.integers(0, 1_000_000)),
             subprocess=self.cfg.subprocess,
         )
         try:
@@ -148,7 +152,8 @@ class Population:
     def _default_eval(self, ind: Individual) -> EvalResult:
         g = ind.genome
         env = build_single_env(reward_weights=g.reward_weights_obj(),
-                               config=self.env_config, seed=self.cfg.eval_seed)
+                               body=self.body, config=self.env_config,
+                               seed=self.cfg.eval_seed)
         from ..agents.factory import build_agent as _b
         # Reload model for evaluation.
         model = _b(g.algo, env, hyperparams=g.hp_for_agent(), arch=g.arch,
@@ -192,6 +197,23 @@ class Population:
         # even before any agent completes a full mile.
         if best.telemetry:
             self.latest_best_telemetry = best.telemetry
+        # Lightweight per-agent race data (distance vs time) for the "every lane"
+        # race view — one runner per lane, ranked best-first.
+        self.latest_race = []
+        for ind in self.individuals:
+            tele = ind.telemetry or {}
+            d = tele.get("distance") or []
+            t = tele.get("t") or []
+            if not d:
+                continue
+            idx = np.linspace(0, len(d) - 1, min(150, len(d))).astype(int)
+            self.latest_race.append({
+                "genome_id": ind.genome.genome_id,
+                "algo": ind.genome.algo,
+                "distances": [float(d[i]) for i in idx],
+                "times": [float(t[i]) for i in idx] if t else list(range(len(idx))),
+                "final": float(d[-1]),
+            })
         fits = [i.fitness for i in self.individuals]
         best_mile = None
         if best.last_result and best.last_result.get("finished"):

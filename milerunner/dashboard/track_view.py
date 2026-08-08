@@ -135,6 +135,92 @@ def track_figure(telemetry: Dict, max_frames: int = 120):
     return fig
 
 
+_RACE_COLORS = ["#22d3ee", "#f59e0b", "#a78bfa", "#34d399", "#ef4444",
+                "#f472b6", "#facc15", "#60a5fa", "#fb923c", "#4ade80"]
+
+
+def _lane_pos(distance_m: float, lane: int) -> Tuple[float, float]:
+    """Position on a concentric lane (outer lanes drawn slightly wider)."""
+    x, y = track_position(distance_m)
+    s = 1.0 + lane * 0.055
+    return x * s, y * s
+
+
+def race_figure(race: List[Dict], max_frames: int = 90):
+    """Animate the whole population racing the mile — one runner per lane.
+
+    ``race`` is a list of per-agent dicts with ``times`` and ``distances``. Each
+    agent gets its own lane and colour; press ▶ to watch them race. They all
+    learn together (population-based training shares discoveries via evolution),
+    and this shows the squad's progress side by side.
+    """
+    import plotly.graph_objects as go
+
+    race = [r for r in (race or []) if r.get("distances")][:len(_RACE_COLORS)]
+    if not race:
+        fig = go.Figure(_base_traces([], go))
+        _layout(fig, go)
+        fig.update_layout(title="🏁 The squad racing")
+        fig.add_annotation(text="waiting for the runners…", showarrow=False,
+                           xref="paper", yref="paper", x=0.5, y=0.5,
+                           font=dict(color="#9ca3af"))
+        return fig
+
+    max_t = max((r["times"][-1] if r.get("times") else 0.0) for r in race) or 1.0
+    tg = np.linspace(0, max_t, max_frames)
+    series = []
+    for r in race:
+        t = np.asarray(r.get("times") or [0.0], dtype=float)
+        d = np.asarray(r.get("distances") or [0.0], dtype=float)
+        if len(t) < 2:
+            series.append(np.full(max_frames, float(d[-1]) if len(d) else 0.0))
+        else:
+            series.append(np.interp(tg, t, d, right=float(d[-1])))
+
+    # faint concentric lane outlines
+    base = []
+    for i in range(len(race)):
+        lx, ly = _oval_outline_scaled(1.0 + i * 0.055)
+        base.append(go.Scatter(x=lx, y=ly, mode="lines",
+                               line=dict(color="#374151", width=1),
+                               hoverinfo="skip", showlegend=False))
+    sx, sy = track_position(0.0)
+    base.append(go.Scatter(x=[sx, sx * 1.6], y=[sy, sy * 1.6], mode="lines",
+                          line=dict(color="#ffffff", width=2), hoverinfo="skip",
+                          showlegend=False))
+
+    def frame_traces(k):
+        traces = list(base)
+        for i, dd in enumerate(series):
+            x, y = _lane_pos(dd[k], i)
+            traces.append(go.Scatter(
+                x=[x], y=[y], mode="markers",
+                marker=dict(size=13, color=_RACE_COLORS[i % len(_RACE_COLORS)],
+                            line=dict(color="#0b1220", width=1)),
+                hoverinfo="skip", showlegend=False))
+        return traces
+
+    fig = go.Figure(data=frame_traces(0))
+    frames = []
+    for k in range(max_frames):
+        leader = max(s[k] for s in series)
+        frames.append(go.Frame(
+            data=frame_traces(k),
+            layout=go.Layout(title=f"🏁 The squad racing  ·  {tg[k]:.0f} s  ·  "
+                                   f"leader {leader:.0f} m ({len(race)} runners)")))
+    fig.frames = frames
+    _layout(fig, go)
+    fig.update_layout(
+        title=f"🏁 The squad racing  ·  {len(race)} runners",
+        updatemenus=[dict(type="buttons", showactive=False, x=0.02, y=0.05,
+                          xanchor="left",
+                          buttons=[dict(label="▶ Race", method="animate",
+                                        args=[None, dict(frame=dict(duration=55, redraw=True),
+                                                         fromcurrent=True)])])],
+    )
+    return fig
+
+
 def _layout(fig, go):
     fig.update_layout(
         template="plotly_dark", showlegend=False,

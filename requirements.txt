@@ -21,6 +21,8 @@ pandas>=2.0
 plotly>=5.18
 dash>=2.14           # local Dash dashboard (scripts/dashboard.py)
 gradio>=4.19         # Gradio dashboard (app.py) for free Hugging Face Spaces
+imageio>=2.31        # write the photorealistic MuJoCo render to video (GPU only)
+imageio-ffmpeg>=0.4  # mp4 encoder for imageio
 
 # --- Experiment tracking / logging / config ---
 tensorboard>=2.14

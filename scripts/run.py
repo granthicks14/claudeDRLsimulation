@@ -71,14 +71,17 @@ def main():
     seed = int(cfg.get("seed", 0))
     seed_everything(seed)
 
+    from milerunner.config_build import build_body
     tcfg, pcfg, ecfg = build_all(cfg, experiment_name=args.experiment)
-    log.info("Experiment '%s' | population=%d | algos=%s | device=%s | n_envs=%d",
-             tcfg.experiment_name, pcfg.size, pcfg.algos, pcfg.device, pcfg.n_envs)
+    body = build_body(cfg)
+    log.info("Experiment '%s' | body=%s (%.0f kg) | population=%d | algos=%s | device=%s | n_envs=%d",
+             tcfg.experiment_name, body.name, body.mass_kg, pcfg.size, pcfg.algos,
+             pcfg.device, pcfg.n_envs)
     log.info("Physics: %d Hz (%.0f steps/sim-sec) | control: %.0f Hz | distance: %.0f m",
              int(1.0 / ecfg.physics_timestep), 1.0 / ecfg.physics_timestep,
              ecfg.control_hz, ecfg.distance_m)
 
-    trainer = ContinuousTrainer(tcfg, pcfg, ecfg, full_config=cfg.to_dict())
+    trainer = ContinuousTrainer(tcfg, pcfg, ecfg, full_config=cfg.to_dict(), body=body)
     log.info("Dashboard: run `python scripts/dashboard.py` in another terminal.")
     log.info("Press Ctrl-C to pause; re-run to resume.")
     trainer.run(max_generations=args.generations)
