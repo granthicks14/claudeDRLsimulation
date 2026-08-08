@@ -6,8 +6,9 @@
   "name": "MileRunner",
   "image": "mcr.microsoft.com/devcontainers/python:3.11",
 
-  // Install CPU PyTorch (small) then the rest of the stack.
-  "postCreateCommand": "pip install --no-cache-dir torch --index-url https://download.pytorch.org/whl/cpu && pip install --no-cache-dir -r requirements.txt",
+  // Software OpenGL (OSMesa) so the 3D video renders on the free CPU, then the
+  // CPU PyTorch build and the rest of the stack.
+  "postCreateCommand": "sudo apt-get update && sudo apt-get install -y libosmesa6-dev libgl1-mesa-glx && pip install --no-cache-dir torch --index-url https://download.pytorch.org/whl/cpu && pip install --no-cache-dir -r requirements.txt",
 
   // Start the trainer + Gradio dashboard in the background on every start.
   "postStartCommand": "nohup python app.py > /tmp/milerunner.log 2>&1 &",

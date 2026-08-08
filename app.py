@@ -15,15 +15,22 @@ from __future__ import annotations
 
 import json
 import os
+import shutil
 import subprocess
 import sys
 import threading
 
 import numpy as np
 
-# Prefer EGL so MuJoCo can render off-screen on a headless GPU (e.g. Colab GPU).
-# Harmless on CPU: the renderer simply fails to init and we skip video.
-os.environ.setdefault("MUJOCO_GL", "egl")
+# Pick a MuJoCo rendering backend so the photorealistic video works for FREE:
+#   • a GPU (e.g. Colab GPU runtime)  -> EGL  (fast)
+#   • plain CPU (free Colab / Codespaces / HF) -> OSMesa (software GL, no GPU)
+# OSMesa needs the system libOSMesa (the setup cells install it). If nothing
+# renders, the Plotly views still work.
+if not os.environ.get("MUJOCO_GL"):
+    _has_gpu = (os.path.exists("/proc/driver/nvidia/version")
+                or shutil.which("nvidia-smi") is not None)
+    os.environ["MUJOCO_GL"] = "egl" if _has_gpu else "osmesa"
 
 import gradio as gr
 
@@ -236,7 +243,7 @@ def build_demo() -> "gr.Blocks":
         with gr.Row(equal_height=False):
             with gr.Column(scale=3):        # MOST OF THE SCREEN — the AI running
                 g_video = gr.Video(
-                    label="🎬 Photorealistic 3D render (appears on a GPU runtime)",
+                    label="🎬 Photorealistic 3D render (renders on CPU or GPU — free)",
                     autoplay=True, interactive=False, height=300)
                 g_side = gr.Plot(label="🎥 The AI running — press ▶ to watch")
             with gr.Column(scale=1, min_width=300):    # SIDEBAR
