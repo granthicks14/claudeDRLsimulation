@@ -139,6 +139,26 @@ def muscle_fatigue_heatmap(fatigue_timeline: Dict[str, List[float]], groups: Lis
     return fig
 
 
+def distance_progress(rows: List[Dict[str, Any]], mile_m: float = 1609.344):
+    """How far the AIs get each generation — the clearest 'are they improving?' view."""
+    import plotly.graph_objects as go
+    if not rows:
+        return _empty("Furthest distance per generation")
+    gens = [r["generation"] for r in rows]
+    dist = [r.get("distance") or 0 for r in rows]
+    fig = go.Figure(go.Scatter(x=gens, y=dist, mode="lines+markers", fill="tozeroy",
+                               line=dict(color=_ACCENT, width=2),
+                               marker=dict(size=5), name="furthest"))
+    fig.add_hline(y=mile_m, line=dict(color=_ACCENT2, dash="dash"),
+                  annotation_text="the mile (1609 m)",
+                  annotation_font_color=_ACCENT2)
+    fig.update_layout(template=_TEMPLATE, title="Furthest distance reached (m)",
+                      margin=dict(l=45, r=15, t=40, b=30))
+    fig.update_xaxes(title_text="generation")
+    fig.update_yaxes(title_text="metres")
+    return fig
+
+
 def algo_comparison(by_algo: Dict[str, Dict[str, float]], metric: str = "best_fitness"):
     """Bar chart comparing RL algorithms (or architectures)."""
     import plotly.graph_objects as go

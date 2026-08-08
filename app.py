@@ -146,8 +146,45 @@ def _replay(tele: dict) -> Replay:
     return r
 
 
+MILE_M = 1609.344
+
+
+def _stats_markdown(status: dict, tele: dict, furthest: float) -> str:
+    """Plain-language progress stats for the sidebar."""
+    speeds = [s for s in (tele.get("speed") or []) if s == s]
+    top = max(speeds) if speeds else 0.0
+    hr = tele.get("heart_rate") or []
+    avg_hr = sum(hr) / len(hr) if hr else 0.0
+    cad = [c for c in (tele.get("cadence") or []) if c > 0]
+    avg_cad = (sum(cad) / len(cad) * 60.0) if cad else 0.0     # steps per minute
+    pct = min(100.0, furthest / MILE_M * 100.0)
+    filled = int(round(pct / 10.0))
+    bar = "█" * filled + "░" * (10 - filled)
+    best = status.get("best_record") or {}
+    mile_txt = f"{best['mile_time']:.1f} s" if best.get("mile_time") else "not yet"
+    gen = status.get("generation", "—")
+    steps = status.get("total_timesteps", 0)
+    runners = status.get("population_size", "—")
+    n_fin = status.get("last_summary", {}).get("n_finished", 0)
+    laps = furthest / 400.0
+    return (
+        "## 📊 How the AIs are doing\n"
+        f"**🏁 Best mile time:** {mile_txt}\n\n"
+        f"**📏 Furthest reached:** {furthest:.0f} m  ({pct:.0f}% of the mile)\n\n"
+        f"`{bar}`  ~{laps:.1f} / 4 laps\n\n"
+        f"**⚡ Top speed:** {top:.1f} m/s  ({top * 2.237:.1f} mph)\n\n"
+        f"**🦵 Cadence:** {avg_cad:.0f} steps/min\n\n"
+        f"**❤️ Heart rate:** {avg_hr:.0f} bpm\n\n"
+        "---\n"
+        f"**🧬 Generation:** {gen}\n\n"
+        f"**🏃 Runners in the race:** {runners}\n\n"
+        f"**⏱️ Experience:** {steps:,} steps\n\n"
+        f"**✅ Full miles completed:** {n_fin}\n"
+    )
+
+
 def refresh():
-    """Return the KPI header + 8 figures for the dashboard."""
+    """Return the stats sidebar + all dashboard figures."""
     ensure_trainer_running()
     status = _load_status()
     try:
@@ -157,32 +194,28 @@ def refresh():
         exp_id = None
 
     if exp_id is None:
-        kpi = ("### ⏳ Training is starting…\n"
-               "The first numbers and charts appear within a couple of minutes — "
-               "this panel refreshes automatically.")
+        stats = ("## ⏳ Training is starting…\n"
+                 "The runner and the first numbers appear within a couple of "
+                 "minutes. This panel updates automatically — keep the tab open.")
         empty = F._empty("waiting for data…")
-        return (kpi, _VIDEO_PATH, track_figure({}), side_run_figure(Replay()),
-                race_figure([]), empty, empty, empty, empty, empty, empty, empty, empty)
+        return (stats, _VIDEO_PATH, side_run_figure(Replay()),
+                track_figure({}), F._empty("progress"), race_figure([]),
+                empty, empty, empty, empty, empty, empty, empty, empty)
 
     hist = db.generation_history(exp_id)
     rec, tele = _best_telemetry(db, exp_id)
-    mile = rec.get("mile_time") if rec else None
-    kpi = (
-        "### 🏃 MileRunner — live\n"
-        f"**Fastest mile:** {f'{mile:.1f}s' if mile else '—'}  ·  "
-        f"**Generation:** {status.get('generation', (hist[-1]['gen_index'] if hist else 0))}  ·  "
-        f"**Cumulative steps:** {status.get('total_timesteps', 0):,}  ·  "
-        f"**Population:** {status.get('population_size', '—')}  ·  "
-        f"**Finishers:** {status.get('last_summary', {}).get('n_finished', '—')}"
-    )
+    furthest = db.max_distance(exp_id)
+    dist_rows = db.distance_by_generation(exp_id)
+    stats = _stats_markdown(status, tele, furthest)
     fatigue = {g: tele.get(f"fatigue_{g}", []) for g in MUSCLE_GROUPS}
     rp = _replay(tele)
     _maybe_render_video()          # renders a real 3D video in the background if a GPU is present
     return (
-        kpi,
+        stats,
         _VIDEO_PATH,
-        track_figure(tele),
-        side_run_figure(rp),
+        side_run_figure(rp),                               # hero: the AI running
+        track_figure(tele, best_distance=furthest),        # sidebar: on the track
+        F.distance_progress(dist_rows),                    # sidebar: progress trend
         race_figure(_load_race()),
         F.training_progress(hist),
         animated_skeleton_figure(rp),
@@ -197,38 +230,39 @@ def refresh():
 
 def build_demo() -> "gr.Blocks":
     with gr.Blocks(title="MileRunner", theme=gr.themes.Soft()) as demo:
-        gr.Markdown(
-            "# 🏃 MileRunner — Discovering the Fastest Human Mile\n"
-            "Populations of AI agents learn to run a mile under realistic "
-            "biomechanics — no technique is hard-coded. Training runs live on "
-            "this Space; the charts below refresh automatically."
-        )
-        kpi = gr.Markdown()
-        # Photorealistic 3D video — auto-fills when running on a GPU (e.g. Colab
-        # GPU runtime); stays empty on CPU (the Plotly views below always work).
-        g_video = gr.Video(label="🎬 Photorealistic 3D render (appears on a GPU runtime)",
-                           autoplay=True, interactive=False)
-        # The two "watch the AI run" views: a side-view runner + the oval track.
-        with gr.Row():
-            g_side = gr.Plot(label="🎥 Watch the AI run (side view)")
-            g_track = gr.Plot(label="🏁 Best runner's position on the 400 m track")
-        # The whole population racing — one model per lane.
-        with gr.Row():
-            g_race = gr.Plot(label="🏁 The squad racing — a model in every lane")
-        with gr.Row():
-            g_prog = gr.Plot(label="Training progress")
-            g_replay = gr.Plot(label="Best-agent 3D replay")
-        with gr.Row():
-            g_speed = gr.Plot(label="Speed")
-            g_hr = gr.Plot(label="Heart rate")
-            g_cad = gr.Plot(label="Cadence")
-        with gr.Row():
-            g_o2 = gr.Plot(label="Oxygen (VO₂)")
-            g_energy = gr.Plot(label="Energy reserves")
-            g_fat = gr.Plot(label="Muscle fatigue")
+        gr.Markdown("# 🏃 MileRunner — watch an AI learn to run a mile")
 
-        outputs = [kpi, g_video, g_track, g_side, g_race, g_prog, g_replay,
-                   g_speed, g_hr, g_cad, g_o2, g_energy, g_fat]
+        # ---- Hero row: the runner takes most of the screen; stats on the side ----
+        with gr.Row(equal_height=False):
+            with gr.Column(scale=3):        # MOST OF THE SCREEN — the AI running
+                g_video = gr.Video(
+                    label="🎬 Photorealistic 3D render (appears on a GPU runtime)",
+                    autoplay=True, interactive=False, height=300)
+                g_side = gr.Plot(label="🎥 The AI running — press ▶ to watch")
+            with gr.Column(scale=1, min_width=300):    # SIDEBAR
+                stats = gr.Markdown()
+                g_track = gr.Plot(label="🏁 On the track (⚑ = furthest ever)")
+                g_dist = gr.Plot(label="📈 Progress each generation")
+
+        # The whole population racing — one model per lane.
+        g_race = gr.Plot(label="🏁 The squad racing — a model in every lane")
+
+        # Detailed physiology & training charts, tucked away for a clean top view.
+        with gr.Accordion("📊 More detailed charts (physiology & training)", open=False):
+            with gr.Row():
+                g_prog = gr.Plot(label="Training progress (fitness)")
+                g_replay = gr.Plot(label="3D replay")
+            with gr.Row():
+                g_speed = gr.Plot(label="Speed")
+                g_hr = gr.Plot(label="Heart rate")
+                g_cad = gr.Plot(label="Cadence")
+            with gr.Row():
+                g_o2 = gr.Plot(label="Oxygen (VO₂)")
+                g_energy = gr.Plot(label="Energy reserves")
+                g_fat = gr.Plot(label="Muscle fatigue")
+
+        outputs = [stats, g_video, g_side, g_track, g_dist, g_race, g_prog,
+                   g_replay, g_speed, g_hr, g_cad, g_o2, g_energy, g_fat]
         # Initial paint + auto-refresh every 6 seconds.
         demo.load(refresh, outputs=outputs)
         timer = gr.Timer(6)

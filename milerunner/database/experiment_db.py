@@ -228,6 +228,21 @@ class ExperimentDB:
         ).fetchall()
         return [dict(r) for r in rows]
 
+    def max_distance(self, exp_id: int) -> float:
+        """Furthest distance any agent has ever reached (m) — progress toward the mile."""
+        row = self._conn.execute(
+            "SELECT MAX(distance) AS d FROM evaluations WHERE experiment_id=?",
+            (exp_id,)).fetchone()
+        return float(row["d"]) if row and row["d"] is not None else 0.0
+
+    def distance_by_generation(self, exp_id: int) -> List[Dict[str, Any]]:
+        """Best distance reached in each generation (for a progress trend chart)."""
+        rows = self._conn.execute(
+            """SELECT generation, MAX(distance) AS distance, MAX(mean_speed) AS speed
+               FROM evaluations WHERE experiment_id=? GROUP BY generation
+               ORDER BY generation""", (exp_id,)).fetchall()
+        return [dict(r) for r in rows]
+
     def best_by_fitness(self, exp_id: int) -> Optional[Dict[str, Any]]:
         """Highest-fitness agent regardless of whether it finished a mile."""
         row = self._conn.execute(
