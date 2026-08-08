@@ -41,7 +41,8 @@ def gl_available() -> bool:
 
 
 def render_best_video(body, telemetry: dict, out_path: str,
-                      width: int = 512, height: int = 384, fps: int = 30) -> Optional[str]:
+                      width: int = 400, height: int = 300, fps: int = 30,
+                      max_frames: int = 60) -> Optional[str]:
     """Render the recorded ``qpos`` frames to an mp4. Returns the path or None.
 
     Requires a GL backend (see :func:`gl_available`) and ``imageio``. The camera
@@ -50,6 +51,10 @@ def render_best_video(body, telemetry: dict, out_path: str,
     frames_q: List[list] = telemetry.get("qpos") or []
     if not frames_q:
         return None
+    # Cap frames so CPU (OSMesa) rendering stays quick.
+    if len(frames_q) > max_frames:
+        step = len(frames_q) / max_frames
+        frames_q = [frames_q[int(i * step)] for i in range(max_frames)]
     try:
         import imageio.v2 as imageio
         import mujoco
