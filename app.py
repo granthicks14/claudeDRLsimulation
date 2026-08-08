@@ -17,8 +17,13 @@ import json
 import os
 import subprocess
 import sys
+import threading
 
 import numpy as np
+
+# Prefer EGL so MuJoCo can render off-screen on a headless GPU (e.g. Colab GPU).
+# Harmless on CPU: the renderer simply fails to init and we skip video.
+os.environ.setdefault("MUJOCO_GL", "egl")
 
 import gradio as gr
 
@@ -26,14 +31,64 @@ from milerunner.biomech.muscles import MUSCLE_GROUPS
 from milerunner.dashboard import figures as F
 from milerunner.dashboard.replay import (Replay, animated_skeleton_figure,
                                          side_run_figure)
-from milerunner.dashboard.track_view import track_figure
+from milerunner.dashboard.track_view import race_figure, track_figure
 from milerunner.database.experiment_db import ExperimentDB
 
 DB = os.environ.get("MILE_DB", "experiments/milerunner.db")
 STATUS = os.environ.get("MILE_STATUS", "experiments/status.json")
 BEST_TELE = os.environ.get("MILE_BEST_TELE", "experiments/best_telemetry.json")
+RACE = os.environ.get("MILE_RACE", "experiments/race.json")
 EXPERIMENT = os.environ.get("MILE_EXPERIMENT", "hosted")
 CONFIG = os.environ.get("MILE_CONFIG", "hosted")
+
+
+def _load_race():
+    try:
+        with open(RACE) as fh:
+            return json.load(fh)
+    except Exception:
+        return []
+
+
+# --- Optional photorealistic MuJoCo render (auto-enabled when a GPU is present).
+_VIDEO_PATH = None
+_LAST_RENDER_KEY = None
+_RENDER_LOCK = threading.Lock()
+
+
+def _maybe_render_video():
+    """If a GL backend exists, render the latest best run to a video in the
+    background (throttled to once per new best telemetry). No-op on CPU."""
+    global _VIDEO_PATH, _LAST_RENDER_KEY
+    try:
+        from milerunner.dashboard.render3d import gl_available
+        if not gl_available():
+            return
+        key = os.path.getmtime(BEST_TELE)
+    except Exception:
+        return
+    if key == _LAST_RENDER_KEY or not _RENDER_LOCK.acquire(blocking=False):
+        return
+
+    def _work():
+        global _VIDEO_PATH, _LAST_RENDER_KEY
+        try:
+            with open(BEST_TELE) as fh:
+                tele = json.load(fh)
+            from milerunner.config_build import build_body
+            from milerunner.dashboard.render3d import render_best_video
+            from milerunner.utils.config import load_config
+            body = build_body(load_config(CONFIG))
+            path = render_best_video(body, tele, "experiments/best_render.mp4")
+            if path:
+                _VIDEO_PATH = path
+            _LAST_RENDER_KEY = key
+        except Exception:
+            pass
+        finally:
+            _RENDER_LOCK.release()
+
+    threading.Thread(target=_work, daemon=True).start()
 
 _trainer_proc = None
 
@@ -106,8 +161,8 @@ def refresh():
                "The first numbers and charts appear within a couple of minutes — "
                "this panel refreshes automatically.")
         empty = F._empty("waiting for data…")
-        return (kpi, track_figure({}), side_run_figure(Replay()), empty, empty,
-                empty, empty, empty, empty, empty, empty)
+        return (kpi, _VIDEO_PATH, track_figure({}), side_run_figure(Replay()),
+                race_figure([]), empty, empty, empty, empty, empty, empty, empty, empty)
 
     hist = db.generation_history(exp_id)
     rec, tele = _best_telemetry(db, exp_id)
@@ -122,10 +177,13 @@ def refresh():
     )
     fatigue = {g: tele.get(f"fatigue_{g}", []) for g in MUSCLE_GROUPS}
     rp = _replay(tele)
+    _maybe_render_video()          # renders a real 3D video in the background if a GPU is present
     return (
         kpi,
+        _VIDEO_PATH,
         track_figure(tele),
         side_run_figure(rp),
+        race_figure(_load_race()),
         F.training_progress(hist),
         animated_skeleton_figure(rp),
         F.speed_curve(tele),
@@ -146,10 +204,17 @@ def build_demo() -> "gr.Blocks":
             "this Space; the charts below refresh automatically."
         )
         kpi = gr.Markdown()
+        # Photorealistic 3D video — auto-fills when running on a GPU (e.g. Colab
+        # GPU runtime); stays empty on CPU (the Plotly views below always work).
+        g_video = gr.Video(label="🎬 Photorealistic 3D render (appears on a GPU runtime)",
+                           autoplay=True, interactive=False)
         # The two "watch the AI run" views: a side-view runner + the oval track.
         with gr.Row():
             g_side = gr.Plot(label="🎥 Watch the AI run (side view)")
-            g_track = gr.Plot(label="🏁 Position on the 400 m track")
+            g_track = gr.Plot(label="🏁 Best runner's position on the 400 m track")
+        # The whole population racing — one model per lane.
+        with gr.Row():
+            g_race = gr.Plot(label="🏁 The squad racing — a model in every lane")
         with gr.Row():
             g_prog = gr.Plot(label="Training progress")
             g_replay = gr.Plot(label="Best-agent 3D replay")
@@ -162,7 +227,7 @@ def build_demo() -> "gr.Blocks":
             g_energy = gr.Plot(label="Energy reserves")
             g_fat = gr.Plot(label="Muscle fatigue")
 
-        outputs = [kpi, g_track, g_side, g_prog, g_replay,
+        outputs = [kpi, g_video, g_track, g_side, g_race, g_prog, g_replay,
                    g_speed, g_hr, g_cad, g_o2, g_energy, g_fat]
         # Initial paint + auto-refresh every 6 seconds.
         demo.load(refresh, outputs=outputs)

@@ -81,6 +81,40 @@ def test_restart_disabled_by_default():
     assert cfg.stall_timeout_s == 0.0 and cfg.pace_deadline_s == 0.0
 
 
+def test_race_figure_builds_multiple_lanes():
+    from milerunner.dashboard.track_view import race_figure
+    race = [
+        {"genome_id": "a", "algo": "ppo", "times": list(np.linspace(0, 30, 40)),
+         "distances": list(np.linspace(0, 220, 40))},
+        {"genome_id": "b", "algo": "sac", "times": list(np.linspace(0, 30, 40)),
+         "distances": list(np.linspace(0, 140, 40))},
+    ]
+    d = race_figure(race).to_dict()
+    assert len(d.get("frames", [])) > 0
+    # a marker per runner appears in each frame
+    assert len(d["data"]) >= 2
+
+
+def test_render3d_gracefully_disabled_without_gl():
+    # No GL backend in CI -> gl_available False and render returns None, no crash.
+    from milerunner.dashboard.render3d import gl_available, render_best_video
+    assert gl_available() in (True, False)
+    assert render_best_video(None, {}, "x.mp4") is None
+
+
+def test_elite_body_reaches_training_env():
+    from milerunner.config_build import build_body, build_env_config
+    from milerunner.training.env_builder import build_single_env
+    from milerunner.utils.config import load_config
+
+    cfg = load_config("hosted")
+    env = build_single_env(body=build_body(cfg), config=build_env_config(cfg), seed=0)
+    base = getattr(env, "unwrapped", env)
+    total_mass = float(sum(base.humanoid.model.body_mass))
+    assert base.body.name == "elite_miler"
+    assert total_mass == pytest.approx(64.0, abs=1.0)
+
+
 def test_elite_miler_build_is_consistent():
     from milerunner.biomech.energy import EnergySystem
     from milerunner.config_build import build_body
