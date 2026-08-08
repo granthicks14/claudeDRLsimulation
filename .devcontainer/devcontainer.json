@@ -6,12 +6,14 @@
   "name": "MileRunner",
   "image": "mcr.microsoft.com/devcontainers/python:3.11",
 
-  // Software OpenGL (OSMesa) so the 3D video renders on the free CPU, then the
-  // CPU PyTorch build and the rest of the stack.
-  "postCreateCommand": "sudo apt-get update && sudo apt-get install -y libosmesa6-dev libgl1-mesa-glx && pip install --no-cache-dir torch --index-url https://download.pytorch.org/whl/cpu && pip install --no-cache-dir -r requirements.txt",
+  // Install: software OpenGL (OSMesa) for the free-CPU 3D video, CPU PyTorch,
+  // then the rest of the stack. Fallbacks (|| ...) keep the build from silently
+  // failing if a mirror hiccups.
+  "postCreateCommand": "bash -lc 'sudo apt-get update -y || true; sudo apt-get install -y libosmesa6-dev libgl1-mesa-glx || true; pip install --no-cache-dir torch --index-url https://download.pytorch.org/whl/cpu || pip install --no-cache-dir torch; pip install --no-cache-dir -r requirements.txt'",
 
-  // Start the trainer + Gradio dashboard in the background on every start.
-  "postStartCommand": "nohup python app.py > /tmp/milerunner.log 2>&1 &",
+  // Auto-start the trainer + live dashboard in the background on every start.
+  "postStartCommand": "bash -lc 'mkdir -p experiments; nohup python app.py > experiments/app.log 2>&1 &'",
+  "waitFor": "postCreateCommand",
 
   // Expose the dashboard; Codespaces gives it a browser URL automatically.
   "forwardPorts": [7860],

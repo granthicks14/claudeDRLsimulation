@@ -7,25 +7,31 @@ and an automatic public-to-you URL for the dashboard. You already have the repo,
 so there's nothing new to sign up for.
 
 This repo includes a dev-container that **auto-installs everything and
-auto-starts the trainer + dashboard**, so it's nearly one click.
+auto-starts the trainer + dashboard**, and **auto-opens the dashboard in your
+browser** — so it's effectively one click.
 
 ---
 
-## Steps
+## One click
 
-### 1. Open a Codespace
-1. Go to the repo: <https://github.com/granthicks14/claudeDRLsimulation>
-2. Click the green **`< > Code`** button → **Codespaces** tab →
-   **Create codespace on main**.
-3. A browser VS Code opens and starts building. The first build installs PyTorch
-   and the rest of the stack — this takes **~3–5 minutes** (only the first time).
+**[▶ Open MileRunner in Codespaces](https://codespaces.new/granthicks14/claudeDRLsimulation?quickstart=1)**
+(sign in to GitHub first). That's it — everything below happens automatically.
 
-### 2. Open the dashboard
-- When setup finishes, the trainer + dashboard start automatically and a
-  **"Your application running on port 7860 is available"** popup appears →
-  click **Open in Browser**.
-- If you miss the popup: click the **Ports** tab (next to the terminal), find
-  port **7860** ("MileRunner Dashboard"), and click the 🌐 globe icon to open it.
+---
+
+## What happens after you click
+
+### 1. It builds (~3–5 min, first time only)
+A browser VS Code opens and installs PyTorch, MuJoCo, the CPU renderer and the
+rest of the stack. You'll see it working in the terminal.
+
+### 2. The dashboard opens itself
+When the build finishes, the trainer + dashboard start automatically and a
+**"Your application running on port 7860 is available"** popup appears — it opens
+the dashboard tab for you (`onAutoForward: openBrowserOnce`).
+- If you miss it: click the **Ports** tab (next to the terminal), find port
+  **7860** ("MileRunner Dashboard"), and click the 🌐 globe icon.
+- To watch the trainer log: in a terminal run `tail -f experiments/app.log`.
 
 That's it — the live dashboard loads. Give the trainer a minute to finish its
 first generation, then the fastest-mile number, the speed / heart-rate / cadence

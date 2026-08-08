@@ -1,5 +1,21 @@
 # 🏃 MileRunner — Discovering the Fastest Human Mile with Deep RL + Evolution
 
+## ▶ Watch it run in your browser — FREE, one click (no credit card)
+
+[![Open in GitHub Codespaces](https://github.com/codespaces/badge.svg)](https://codespaces.new/granthicks14/claudeDRLsimulation?quickstart=1)
+
+**Click the badge above** (while signed in to GitHub). It spins up a free cloud
+machine, auto-installs everything, and auto-opens the live dashboard — you watch
+the AI runners, the track, the race, and live stats in your browser. First build
+takes ~3–5 min, then the runners appear after generation 0 (~2–3 min). No GPU, no
+payment. Full walkthrough: [`docs/CODESPACES_SETUP.md`](docs/CODESPACES_SETUP.md).
+
+> Free GitHub accounts include ~60 hours/month of Codespaces with **no credit
+> card**; it auto-stops when idle so you won't burn hours. See below for other
+> free options (Kaggle, Lightning AI).
+
+---
+
 A research-grade platform that trains **populations of AI agents** to discover
 the fastest possible one‑mile running strategy for an **average human body**,
 under realistic biomechanics and physics. The agents are *not* told how to run:
