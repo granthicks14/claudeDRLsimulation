@@ -11,8 +11,13 @@ takes ~3–5 min, then the runners appear after generation 0 (~2–3 min). No GP
 payment. Full walkthrough: [`docs/CODESPACES_SETUP.md`](docs/CODESPACES_SETUP.md).
 
 > Free GitHub accounts include ~60 hours/month of Codespaces with **no credit
-> card**; it auto-stops when idle so you won't burn hours. See below for other
-> free options (Kaggle, Lightning AI).
+> card**; it auto-stops when idle so you won't burn hours. Training **auto-saves
+> and resumes**, so stopping/reopening never loses progress.
+>
+> **Want it to run longer?** No free, no-card service runs 24/7 forever, but see
+> [`docs/RUN_LONGER.md`](docs/RUN_LONGER.md): raise the Codespaces idle timeout to
+> **4 hours**, use **Kaggle for 12-hour sessions** (30 GB RAM, no card), or
+> **Oracle Cloud Always Free** for true 24/7 (needs a card for ID only).
 
 ---
 
