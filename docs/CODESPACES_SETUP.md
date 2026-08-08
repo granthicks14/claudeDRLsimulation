@@ -61,7 +61,17 @@ and keep improving. 🎉
 - **Stop the Codespace when you're done** so it doesn't use your free hours:
   <https://github.com/codespaces> → **⋯** → **Stop codespace**. Restarting later
   resumes instantly (deps stay installed).
-- Codespaces auto-stop after 30 minutes idle by default, so you won't burn hours
-  by forgetting about it.
+- Codespaces auto-stop after **30 minutes idle by default** — but you can raise
+  that to the **maximum 4 hours** at
+  <https://github.com/settings/codespaces> → **Default idle timeout → 240 min**.
 - Progress is saved inside the Codespace (`experiments/`), so stopping and
-  restarting keeps your best mile. Deleting the Codespace clears it.
+  restarting **resumes training exactly where it left off** — the best mile keeps
+  improving across sessions. Deleting the Codespace clears it.
+
+### Want it to run even longer?
+
+No free service with **no credit card** runs this 24/7 forever, but because
+MileRunner auto-resumes, you effectively get unlimited cumulative training. See
+**[`RUN_LONGER.md`](RUN_LONGER.md)** for all options: Codespaces at 4-hour idle,
+**Kaggle for 12-hour sessions** (30 GB RAM, no card), and **Oracle Cloud Always
+Free** for true 24/7 (needs a card for ID only).
