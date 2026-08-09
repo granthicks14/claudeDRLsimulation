@@ -112,28 +112,26 @@ class ContinuousTrainer:
         with open(tmp, "w") as fh:
             json.dump(status, fh, indent=2, default=str)
         os.replace(tmp, self.tcfg.status_path)
+        self._save_sidecars()
 
-        # Sidecar: the current best agent's telemetry, so the dashboard can show
-        # live speed/HR/energy/fatigue curves and the 3D replay every generation
-        # — even before any agent completes a full mile.
+    def _save_sidecars(self) -> None:
+        """Write the telemetry + race sidecars the dashboard reads to show the
+        runner. Called every generation AND after each agent (incremental) AND
+        after a startup warmup, so the runner appears within seconds."""
+        d = os.path.dirname(self.tcfg.status_path) or "."
+        os.makedirs(d, exist_ok=True)
         tele = self.population.latest_best_telemetry
         if tele:
-            tele_path = os.path.join(os.path.dirname(self.tcfg.status_path) or ".",
-                                     "best_telemetry.json")
-            tmp2 = tele_path + ".tmp"
-            with open(tmp2, "w") as fh:
+            p = os.path.join(d, "best_telemetry.json")
+            with open(p + ".tmp", "w") as fh:
                 json.dump(tele, fh, default=str)
-            os.replace(tmp2, tele_path)
-
-        # Sidecar: per-agent race data (one runner per lane) for the race view.
+            os.replace(p + ".tmp", p)
         race = getattr(self.population, "latest_race", [])
         if race:
-            race_path = os.path.join(os.path.dirname(self.tcfg.status_path) or ".",
-                                     "race.json")
-            tmp3 = race_path + ".tmp"
-            with open(tmp3, "w") as fh:
+            p = os.path.join(d, "race.json")
+            with open(p + ".tmp", "w") as fh:
                 json.dump(race, fh, default=str)
-            os.replace(tmp3, race_path)
+            os.replace(p + ".tmp", p)
 
     def _save(self) -> None:
         save_search_state(self._state_path, self.population.state_dict())
@@ -144,6 +142,19 @@ class ContinuousTrainer:
         self._install_signal_handlers()
         self.resume_or_init()
         self.db.set_experiment_status(self.exp_id, "running")
+
+        # Warm-up: produce a first (untrained) runner rollout immediately so the
+        # dashboard shows a runner within seconds instead of waiting for a full
+        # generation. Best-effort — never blocks training if it fails.
+        if not self.population.latest_best_telemetry:
+            try:
+                log.info("[8] Warm-up rollout so the runner appears immediately …")
+                self.population.quick_warmup()
+                self._save_sidecars()
+                log.info("[8] Warm-up done — the dashboard can show the runner now.")
+            except Exception as e:  # pragma: no cover
+                log.warning("warm-up rollout skipped: %s", e)
+
         cap = max_generations if max_generations is not None else self.tcfg.max_generations
         start_gen = self.population.generation
         try:
@@ -151,7 +162,9 @@ class ContinuousTrainer:
                 if cap and (self.population.generation - start_gen) >= cap:
                     log.info("Reached generation cap (%d).", cap)
                     break
-                summary = self.population.train_generation()
+                # Update the sidecars after every agent so the runner refreshes
+                # continuously, not just once per generation.
+                summary = self.population.train_generation(on_agent_done=self._save_sidecars)
                 self._write_status(summary)
                 if self.population.generation % self.tcfg.save_every == 0:
                     self._save()

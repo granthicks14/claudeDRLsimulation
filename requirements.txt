@@ -19,6 +19,7 @@ pandas>=2.0
 
 # --- Dashboard / visualization ---
 plotly>=5.18
+matplotlib>=3.6      # CPU runner video (no OpenGL needed) for the dashboard
 dash>=2.14           # local Dash dashboard (scripts/dashboard.py)
 gradio>=4.19         # Gradio dashboard (app.py) for free Hugging Face Spaces
 imageio>=2.31        # write the photorealistic MuJoCo render to video (GPU only)

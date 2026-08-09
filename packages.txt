@@ -1,2 +1,1 @@
-libosmesa6-dev
-libgl1-mesa-glx
+libosmesa6

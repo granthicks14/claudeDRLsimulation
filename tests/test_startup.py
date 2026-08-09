@@ -48,6 +48,25 @@ def test_evaluate_produces_telemetry_for_dashboard():
     assert len(res.telemetry.get("skeleton", [])) > 0     # feeds the runner views
 
 
+def test_cpu_runner_video_renders_without_opengl(tmp_path):
+    # The runner video must render on a plain CPU (matplotlib), no OpenGL.
+    pytest.importorskip("matplotlib")
+    pytest.importorskip("imageio")
+    from milerunner.dashboard.render2d import render_run_video
+    from milerunner.dashboard.replay import BODIES
+    f1 = {b: [float(i) * 0.1, 0.0, 1.0] for i, b in enumerate(BODIES)}
+    f2 = {b: [float(i) * 0.1 + 0.2, 0.0, 1.1] for i, b in enumerate(BODIES)}
+    tele = {"skeleton": [f1, f2, f1], "skeleton_t": [0.0, 0.1, 0.2],
+            "distance": [0.0, 0.4, 0.8]}
+    out = render_run_video(tele, str(tmp_path / "run.mp4"), max_frames=3)
+    assert out is not None and os.path.exists(out) and os.path.getsize(out) > 0
+
+
+def test_cpu_runner_video_none_without_frames(tmp_path):
+    from milerunner.dashboard.render2d import render_run_video
+    assert render_run_video({}, str(tmp_path / "x.mp4")) is None
+
+
 def test_app_surfaces_trainer_error_instead_of_hanging(monkeypatch):
     os.environ["MILE_NO_AUTOSTART"] = "1"      # don't spawn a real trainer on import
     import app

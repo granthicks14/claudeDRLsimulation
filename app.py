@@ -65,19 +65,14 @@ _RENDER_LOCK = threading.Lock()
 
 
 def _maybe_render_video():
-    """If a GL backend exists, render the latest best run to a video in the
-    background (throttled to once per new best telemetry). No-op on CPU."""
+    """Render the latest best run to an MP4 in the background (throttled to once
+    per new telemetry). Uses a **CPU matplotlib renderer that always works** (no
+    OpenGL); upgrades to the photorealistic MuJoCo render only if an OpenGL
+    backend happens to be available."""
     global _VIDEO_PATH, _LAST_RENDER_KEY
     try:
-        # Choose the render backend HERE (never at import time): GPU->EGL, else
-        # OSMesa (software GL on CPU). This only affects the app process, not the
-        # trainer. If OSMesa/EGL isn't available the import fails -> caught below.
-        os.environ.setdefault("MUJOCO_GL", "egl" if _has_gpu() else "osmesa")
-        from milerunner.dashboard.render3d import gl_available
-        if not gl_available():
-            return
         key = os.path.getmtime(BEST_TELE)
-    except Exception:
+    except OSError:
         return
     if key == _LAST_RENDER_KEY or not _RENDER_LOCK.acquire(blocking=False):
         return
@@ -87,11 +82,23 @@ def _maybe_render_video():
         try:
             with open(BEST_TELE) as fh:
                 tele = json.load(fh)
-            from milerunner.config_build import build_body
-            from milerunner.dashboard.render3d import render_best_video
-            from milerunner.utils.config import load_config
-            body = build_body(load_config(CONFIG))
-            path = render_best_video(body, tele, "experiments/best_render.mp4")
+            path = None
+            # Optional upgrade: photorealistic MuJoCo render IF OpenGL works.
+            try:
+                os.environ.setdefault("MUJOCO_GL", "egl" if _has_gpu() else "osmesa")
+                from milerunner.dashboard.render3d import (gl_available,
+                                                          render_best_video)
+                if gl_available():
+                    from milerunner.config_build import build_body
+                    from milerunner.utils.config import load_config
+                    body = build_body(load_config(CONFIG))
+                    path = render_best_video(body, tele, "experiments/best_render_gl.mp4")
+            except Exception:
+                path = None
+            # Reliable CPU render (matplotlib, no GL) — always produces a video.
+            if not path:
+                from milerunner.dashboard.render2d import render_run_video
+                path = render_run_video(tele, "experiments/best_render.mp4")
             if path:
                 _VIDEO_PATH = path
             _LAST_RENDER_KEY = key
@@ -310,8 +317,8 @@ def build_demo() -> "gr.Blocks":
         with gr.Row(equal_height=False):
             with gr.Column(scale=3):        # MOST OF THE SCREEN — the AI running
                 g_video = gr.Video(
-                    label="🎬 Photorealistic 3D render (renders on CPU or GPU — free)",
-                    autoplay=True, interactive=False, height=300)
+                    label="🎬 The AI running (video) — renders on any free CPU",
+                    autoplay=True, loop=True, interactive=False, height=300)
                 g_side = gr.Plot(label="🎥 The AI running — press ▶ to watch")
             with gr.Column(scale=1, min_width=300):    # SIDEBAR
                 stats = gr.Markdown()

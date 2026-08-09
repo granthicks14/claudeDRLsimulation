@@ -9,7 +9,7 @@
   // Install: software OpenGL (OSMesa) for the free-CPU 3D video, CPU PyTorch,
   // then the rest of the stack. Fallbacks (|| ...) keep the build from silently
   // failing if a mirror hiccups.
-  "postCreateCommand": "bash -lc 'sudo apt-get update -y || true; sudo apt-get install -y libosmesa6-dev libgl1-mesa-glx || true; pip install --no-cache-dir torch --index-url https://download.pytorch.org/whl/cpu || pip install --no-cache-dir torch; pip install --no-cache-dir -r requirements.txt'",
+  "postCreateCommand": "bash -lc 'sudo apt-get update -y || true; sudo apt-get install -y libosmesa6 || true; pip install --no-cache-dir torch --index-url https://download.pytorch.org/whl/cpu || pip install --no-cache-dir torch; pip install --no-cache-dir -r requirements.txt'",
 
   // Auto-start the trainer + live dashboard in the background on every start.
   "postStartCommand": "bash -lc 'mkdir -p experiments; nohup python app.py > experiments/app.log 2>&1 &'",
