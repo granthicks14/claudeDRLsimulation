@@ -169,10 +169,59 @@ class Population:
         return result
 
     # ------------------------------------------------------------------ #
-    def train_generation(self, timesteps_override: Optional[int] = None) -> Dict[str, Any]:
-        """Run one full PBT generation and return summary stats."""
+    def quick_warmup(self) -> None:
+        """Produce a first (untrained) runner rollout so the dashboard can show a
+        runner within seconds, before generation 0 finishes. Cheap and best-effort."""
+        import dataclasses
+        if not self.individuals:
+            return
+        g = self.individuals[0].genome
+        warm_cfg = dataclasses.replace(
+            self.env_config, max_time_s=min(self.env_config.max_time_s, 6.0),
+            stall_timeout_s=0.0, pace_deadline_s=0.0)
+        env = build_single_env(reward_weights=g.reward_weights_obj(),
+                               body=self.body, config=warm_cfg, seed=0)
+        try:
+            model = build_agent(g.algo, env, hyperparams=g.hp_for_agent(),
+                                arch=g.arch, device=self.cfg.device)
+            result = evaluate_policy(model, env=env, record_telemetry=True,
+                                     record_skeleton=True, seed=0)
+            if result.telemetry:
+                self.latest_best_telemetry = result.telemetry
+                row = self._race_row(type("X", (), {"genome": g,
+                                     "telemetry": result.telemetry})())
+                if row is not None:
+                    self.latest_race = [row]
+        finally:
+            env.close()
+
+    # ------------------------------------------------------------------ #
+    @staticmethod
+    def _race_row(ind):
+        tele = ind.telemetry or {}
+        d = tele.get("distance") or []
+        t = tele.get("t") or []
+        if not d:
+            return None
+        idx = np.linspace(0, len(d) - 1, min(150, len(d))).astype(int)
+        return {
+            "genome_id": ind.genome.genome_id, "algo": ind.genome.algo,
+            "distances": [float(d[i]) for i in idx],
+            "times": [float(t[i]) for i in idx] if t else list(range(len(idx))),
+            "final": float(d[-1]),
+        }
+
+    def train_generation(self, timesteps_override: Optional[int] = None,
+                         on_agent_done: Optional[Callable] = None) -> Dict[str, Any]:
+        """Run one full PBT generation and return summary stats.
+
+        ``on_agent_done`` (if given) is called after each agent is evaluated, so
+        the trainer can refresh the dashboard's runner/telemetry continuously
+        rather than only once per generation.
+        """
         t0 = time.time()
         base = timesteps_override or self.cfg.timesteps_per_gen
+        gen_best_fit = -1e18
         for ind in self.individuals:
             budget = max(256, int(base * ind.genome.train_budget_mult))
             trained = self._train_fn(ind, budget)
@@ -188,6 +237,20 @@ class Population:
                                        "total_timesteps": ind.total_timesteps,
                                    })
             self._maybe_record(ind, result)
+            # Incrementally publish the best-so-far telemetry + race so the
+            # dashboard updates after each agent (runner appears fast).
+            if ind.telemetry and ind.fitness > gen_best_fit:
+                gen_best_fit = ind.fitness
+                self.latest_best_telemetry = ind.telemetry
+            row = self._race_row(ind)
+            if row is not None:
+                self.latest_race = [r for r in self.latest_race
+                                    if r["genome_id"] != row["genome_id"]] + [row]
+            if on_agent_done is not None:
+                try:
+                    on_agent_done()
+                except Exception:
+                    pass
 
         self.individuals.sort(key=lambda i: i.fitness, reverse=True)
         best = self.individuals[0]
